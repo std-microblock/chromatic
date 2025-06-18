@@ -6,7 +6,11 @@
 
 <h4 align="center">PC版 NCM 客户端插件管理器</h4>
 
-  
+> [!WARNING]
+> 由于网易云国语版权太不齐，开发者去用 QQ 音乐了，此项目处于较低维护优先级..
+> 插件 Pull Request 依然会被处理，插件源服务器将持续维护，Issues 的处理享有极低优先级
+> 可能在后期进行重构支持更多客户端后复活
+
 <h4 align="center">
 <a href=https://github.com/MicroCBer/BetterNCM/wiki/%E5%BC%80%E5%8F%91%E6%96%87%E6%A1%A3>开发文档</a> · 
 <a href=https://www.bilibili.com/video/BV1k44y197Fb/>介绍视频</a> · 
