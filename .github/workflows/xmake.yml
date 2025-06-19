@@ -1,0 +1,60 @@
+name: Build
+permissions: write-all
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: windows-2025
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - uses: xmake-io/github-action-setup-xmake@v1
+      with:
+        xmake-version: latest
+        actions-cache-folder: '.xmake-cache'
+        actions-cache-key: 'ci'
+        package-cache: true
+        package-cache-key: windows-2025
+        # build-cache: true
+        # build-cache-key: ${{ matrix.os }}-${{ matrix.build_type }}
+
+    - name: Xmake configure
+      run: |
+        xmake config -v --yes --toolchain=clang-cl --mode=releasedbg
+
+    - name: build-releasedbg
+      run: |
+        xmake b --yes --verbose
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4.6.0
+      with:
+        path: ./build/windows/x64/
+        name: windows-build
+
+    - name: Create Archive
+      if: github.event_name == 'release'
+      run: |
+        Compress-Archive -Path ./build/windows/* -DestinationPath windows-build-pdb.zip
+        Remove-Item -Path ./build/windows/x64/releasedbg/*.pdb -Force
+        Remove-Item -Path ./build/windows/x64/releasedbg/ui.lib -Force
+        Compress-Archive -Path ./build/windows/* -DestinationPath windows-build.zip
+
+    - name: Upload Release Assets
+      if: github.event_name == 'release'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          windows-build.zip
+          windows-build-pdb.zip
+        token: ${{ secrets.GITHUB_TOKEN }}

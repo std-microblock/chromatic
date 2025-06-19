@@ -1,0 +1,3 @@
+[submodule "dependencies/blook"]
+	path = dependencies/blook
+	url = https://github.com/std-microblock/blook
