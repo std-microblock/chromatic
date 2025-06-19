@@ -35,10 +35,6 @@ std::filesystem::path current_executable_path() {
 }
 std::filesystem::path get_module_path(void *module_handle) {
   HMODULE hModule = static_cast<HMODULE>(module_handle);
-  if (!hModule) {
-    return {};
-  }
-
   wchar_t buffer[MAX_PATH];
   if (GetModuleFileNameW(hModule, buffer, MAX_PATH) == 0) {
     return {};

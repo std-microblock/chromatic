@@ -96,7 +96,7 @@ std::filesystem::path config::data_directory() {
 
   if (!path) {
     path = std::filesystem::path(utils::env("USERPROFILE").value()) /
-           ".chromatic" / utils::current_executable_path().filename();
+           ".chromatic" / utils::current_executable_path().filename().string();
   }
 
   if (!std::filesystem::exists(*path)) {

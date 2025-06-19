@@ -101,6 +101,8 @@ context::context() {
           log_msg_raw("[other_proc] " + msg);
           return true;
         });
+
+    detect_process_type();
   } else if (cmdline.find(L"--type=renderer") != std::wstring::npos) {
     init_ipc();
 
