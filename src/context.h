@@ -3,6 +3,7 @@
 #include "blook/module.h"
 #include "config.h"
 #include "ipc.h"
+#include "script/script.h"
 #include <memory>
 #include <string>
 
@@ -22,6 +23,7 @@ struct context {
   process_type type = {};
   
   breeze_ipc process_ipc;
+  std::unique_ptr<script_engine> script = nullptr;
 
   void init_ipc();
 

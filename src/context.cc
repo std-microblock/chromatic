@@ -1,9 +1,7 @@
 #include "context.h"
 
-#include "./hooks/wait_for_module_load.h"
 #include "config.h"
 #include "cpptrace/basic.hpp"
-#include "hooks/disable-integrity.h"
 #include "utils.h"
 #include "ylt/easylog.hpp"
 
@@ -16,6 +14,11 @@
 #include "blook/blook.h"
 #include <debugapi.h>
 #include <thread>
+#include <unordered_map>
+
+#include "./hooks/blink_parse_html_manipulator.h"
+#include "./hooks/disable-integrity.h"
+#include "./hooks/wait_for_module_load.h"
 
 namespace chromatic {
 std::unique_ptr<context> context::current = nullptr;
@@ -102,7 +105,28 @@ context::context() {
           return true;
         });
 
-    detect_process_type();
+    std::thread([this]() {
+      detect_process_type();
+      script = std::make_unique<script_engine>();
+
+      static std::unordered_map<std::string, size_t> symbol_cache;
+      process_ipc.add_call_handler<bool, std::pair<std::string, size_t>>(
+          "set_symbol", [](auto &symbol) {
+            symbol_cache[symbol.first] = symbol.second;
+            return true;
+          });
+
+      process_ipc.add_call_handler<size_t, std::string>(
+          "get_symbol", [](const std::string &name) {
+            auto it = symbol_cache.find(name);
+            if (it != symbol_cache.end()) {
+              return it->second;
+            }
+            return static_cast<size_t>(0);
+          });
+
+      blink_parse_html_manipulator::register_js();
+    }).detach();
   } else if (cmdline.find(L"--type=renderer") != std::wstring::npos) {
     init_ipc();
 
@@ -132,6 +156,7 @@ context::context() {
       ELOGFMT(INFO, "Config loaded: {}", config::current->dump_config());
 
       detect_process_type();
+      blink_parse_html_manipulator::install();
     }).detach();
   }
 }
@@ -187,7 +212,7 @@ void context::detect_process_type() {
         type.chrome_type = process_type::chrome_type::utility;
       } else if (cmdline.find(L"--type=network") != std::wstring::npos) {
         type.chrome_type = process_type::chrome_type::network;
-      } else if (cmdline.find(L"--type=browser") != std::wstring::npos) {
+      } else if (cmdline.find(L"--type=") == std::wstring::npos) {
         type.chrome_type = process_type::chrome_type::main;
       }
 

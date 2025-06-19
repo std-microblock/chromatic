@@ -27,7 +27,7 @@ add_requireconfs("**.async_simple", {
     version = "18f3882be354d407af0f0674121dcddaeff36e26"
 })
 
-add_requires("blook", "breeze-js", "reflect-cpp", "chromatic-cpp-ipc", "cpptrace")
+add_requires("blook", "breeze-js a52a734a11257824ab03932155c97149ecb450ac", "reflect-cpp", "chromatic-cpp-ipc", "cpptrace")
 set_runtimes("MT")
 
 target("chromatic")

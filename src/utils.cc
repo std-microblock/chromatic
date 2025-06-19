@@ -42,4 +42,36 @@ std::filesystem::path get_module_path(void *module_handle) {
 
   return std::filesystem::path(buffer);
 }
+
+task_queue::task_queue() : stop(false) {
+  worker = std::thread(&task_queue::run, this);
+}
+task_queue::~task_queue() {
+  {
+    std::lock_guard<std::mutex> lock(queue_mutex);
+    stop = true;
+  }
+  condition.notify_all();
+  if (worker.joinable()) {
+    worker.join();
+  }
+}
+void task_queue::run() {
+  while (true) {
+    std::function<void()> task;
+    {
+      std::unique_lock<std::mutex> lock(queue_mutex);
+      condition.wait(lock, [this]() { return stop || !tasks.empty(); });
+
+      if (stop && tasks.empty()) {
+        return;
+      }
+
+      task = std::move(tasks.front());
+      tasks.pop();
+    }
+
+    task();
+  }
+}
 } // namespace chromatic::utils
