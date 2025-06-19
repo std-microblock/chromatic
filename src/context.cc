@@ -37,7 +37,7 @@ context::context() {
   auto cmdline = std::wstring(GetCommandLineW());
 
   init_ipc();
-  if (cmdline.find(L"--type=") != std::wstring::npos) {
+  if (cmdline.find(L"--type=") == std::wstring::npos) {
     config::run_config_loader();
 
     config::on_reload.push_back([this]() {
@@ -50,15 +50,18 @@ context::context() {
     process_ipc.add_call_handler<config>("get_config",
                                          []() { return *config::current; });
   } else {
+    ELOGFMT(INFO, "requesting config from main process.");
     process_ipc.add_listener<config>("config_reload", [](const config &cfg) {
       ELOGFMT(INFO, "Received config_reload");
       config::current = std::make_unique<config>(cfg);
     });
 
-    config::current = std::make_unique<config>(process_ipc.call<config>("get_config").get());
+    config::current =
+        std::make_unique<config>(process_ipc.call<config>("get_config").get());
+    ELOGFMT(INFO, "Config loaded: {}", config::current->dump_config());
   }
 
-  detect_process_type();
+  //   detect_process_type();
 }
 
 void context::detect_process_type() {

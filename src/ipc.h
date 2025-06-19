@@ -129,7 +129,7 @@ struct breeze_ipc {
     auto seq = inc_seq();
     send(packet{
         .seq = seq,
-        .return_for_call = seq,
+        .return_for_call = 0,
         .name = "call_" + name,
         .data = struct_pack::serialize(data),
     });
@@ -152,6 +152,8 @@ struct breeze_ipc {
     return call<RetVal, bool>(name, true);
   }
 
+  ~breeze_ipc();
+
 private:
   std::unordered_map<std::string,
                      std::list<std::function<void(const packet &)>>>
@@ -159,5 +161,7 @@ private:
   std::unordered_map<size_t, std::function<void(const packet &)>> call_handlers;
   ::ipc::channel channel;
   std::atomic_size_t seq = 1;
+  std::atomic_bool exit_signal = false;
+  std::thread ipc_thread;
 };
 } // namespace chromatic

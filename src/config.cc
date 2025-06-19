@@ -57,9 +57,7 @@ void config::read_config() {
     if (auto json =
             rfl::json::read<config, rfl::NoExtraFields, rfl::DefaultIfMissing>(
                 json_str)) {
-      // parse twice for default value
       config::current = std::make_unique<config>(json.value());
-      std::cout << "Config reloaded." << std::endl;
     } else {
       std::cerr << "Failed to read config file: " << json.error().what()
                 << "\nUsing default config instead." << std::endl;

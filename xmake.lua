@@ -7,7 +7,6 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "build"})
 
 add_rules("mode.releasedbg")
 
-includes("deps/blook.lua")
 includes("deps/breeze-js.lua")
 
 add_requires("yalantinglibs b82a21925958b6c50deba3aa26a2737cdb814e27", {
