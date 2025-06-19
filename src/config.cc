@@ -120,4 +120,10 @@ void config::run_config_loader() {
     }
   }).detach();
 }
+std::string config::dump_config() {
+  if (!current) {
+    return "{}";
+  }
+  return rfl::json::write(*current);
+}
 } // namespace chromatic

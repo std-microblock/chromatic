@@ -3,6 +3,7 @@
 #include "./hooks/wait_for_module_load.h"
 #include "config.h"
 #include "cpptrace/basic.hpp"
+#include "hooks/disable-integrity.h"
 #include "utils.h"
 #include "ylt/easylog.hpp"
 
@@ -13,6 +14,8 @@
 
 #include "Windows.h"
 #include "blook/blook.h"
+#include <debugapi.h>
+#include <thread>
 
 namespace chromatic {
 std::unique_ptr<context> context::current = nullptr;
@@ -20,6 +23,7 @@ std::unique_ptr<context> context::current = nullptr;
 void context::init() {
   SetUnhandledExceptionFilter(+[](EXCEPTION_POINTERS *ep) -> long {
     ELOGFMT(FATAL, "Unhandled exception: {}", cpptrace::stacktrace::current());
+    Sleep(1000);
     return EXCEPTION_CONTINUE_SEARCH;
   });
 
@@ -29,39 +33,105 @@ void context::init() {
     }
   }
   CPPTRACE_CATCH(const std::exception &e) {
-    ELOGFMT(ERROR, "Failed to initialize context: {}",
+    ELOGFMT(ERROR, "Failed to initialize context: {} {}", e.what(),
             cpptrace::from_current_exception());
+    Sleep(1000);
+  }
+  catch (...) {
+    ELOGFMT(ERROR, "Failed to initialize context: unknown exception: {}",
+            cpptrace::from_current_exception());
+    Sleep(1000);
   }
 }
 context::context() {
   auto cmdline = std::wstring(GetCommandLineW());
 
-  init_ipc();
-  if (cmdline.find(L"--type=") == std::wstring::npos) {
-    config::run_config_loader();
+  ELOGFMT(INFO, "Command line: {}", utils::wstring_to_utf8(cmdline));
+  bool is_probably_main = cmdline.find(L"--type=") == std::wstring::npos,
+       is_renderer = cmdline.find(L"--type=renderer") != std::wstring::npos;
+  if (!is_probably_main && !is_renderer) {
+    ELOGFMT(INFO, "Chromatic is not running in this process.");
+    return;
+  }
 
+  AllocConsole();
+  freopen("CONOUT$", "w", stdout);
+  freopen("CONOUT$", "w", stderr);
+
+  if (is_probably_main) {
+    DWORD mode;
+    static HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    GetConsoleMode(h, &mode);
+    SetConsoleMode(h, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+
+    static auto log_msg_raw = [](const auto &msg) {
+      std::string msg_formatted =
+          std::format("\033[47;30m chromatic \033[0m {}", msg);
+
+      msg_formatted.erase(
+          std::find_if(msg_formatted.rbegin(), msg_formatted.rend(),
+                       [](unsigned char ch) { return !std::isspace(ch); })
+              .base(),
+          msg_formatted.end());
+      msg_formatted += "\n";
+      WriteConsoleA(h, msg_formatted.c_str(),
+                    static_cast<DWORD>(msg_formatted.size()), nullptr, nullptr);
+    };
+
+    easylog::add_appender(log_msg_raw);
+
+    hooks::windows::disable_integrity();
+
+    init_ipc();
+    config::run_config_loader();
     config::on_reload.push_back([this]() {
       ELOGFMT(INFO, "Config reloaded, broadcasting to other processes.");
       process_ipc.send("config_reload", *config::current);
     });
 
+    ELOGFMT(INFO, "Chromatic v0.0.0, initialized as main process.");
+
     process_ipc.send("config_reload", *config::current);
 
     process_ipc.add_call_handler<config>("get_config",
                                          []() { return *config::current; });
-  } else {
+
+    process_ipc.add_call_handler<bool, std::string>(
+        "log", [](const std::string &msg) {
+          log_msg_raw("[other_proc] " + msg);
+          return true;
+        });
+  } else if (cmdline.find(L"--type=renderer") != std::wstring::npos) {
+    init_ipc();
+
+    easylog::add_appender([this](std::string_view msg) {
+      process_ipc.call<bool, std::string>("log", std::string(msg));
+    });
+
     ELOGFMT(INFO, "requesting config from main process.");
     process_ipc.add_listener<config>("config_reload", [](const config &cfg) {
       ELOGFMT(INFO, "Received config_reload");
       config::current = std::make_unique<config>(cfg);
     });
 
-    config::current =
-        std::make_unique<config>(process_ipc.call<config>("get_config").get());
-    ELOGFMT(INFO, "Config loaded: {}", config::current->dump_config());
-  }
+    std::thread([this]() {
+      auto p = process_ipc.call<config>("get_config");
+      p.wait_for(std::chrono::seconds(1));
+      if (p.valid() &&
+          p.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        config::current = std::make_unique<config>(p.get());
+      } else {
+        ELOGFMT(WARN, "Failed to get config from main process, using default.");
+        config::current = std::make_unique<config>();
+      }
 
-  //   detect_process_type();
+      ELOGFMT(INFO, "Chromatic v0.0.0, initialized as renderer process.");
+
+      ELOGFMT(INFO, "Config loaded: {}", config::current->dump_config());
+
+      detect_process_type();
+    }).detach();
+  }
 }
 
 void context::detect_process_type() {
@@ -132,8 +202,5 @@ void context::detect_process_type() {
     }
   }
 }
-void context::init_ipc() {
-  process_ipc.connect("chromatic://" +
-                      utils::current_executable_path().string() + "/process");
-}
+void context::init_ipc() { process_ipc.connect("chromatic://process"); }
 } // namespace chromatic

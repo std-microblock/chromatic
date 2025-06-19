@@ -1,18 +1,20 @@
 #include "ipc.h"
-#include "ylt/easylog.hpp"
+#include <print>
 #include <stdexcept>
 
+#include "ylt/easylog.hpp"
 namespace chromatic {
 void breeze_ipc::connect(std::string_view name) {
   if (!channel.connect(name.data())) {
     throw std::runtime_error("Failed to connect to IPC channel: " +
                              std::string(name));
   }
-
   ipc_thread = std::thread([this]() {
+    ELOGFMT(INFO, "IPC thread started, listening for packets...");
     while (!exit_signal) {
       auto data = channel.recv(100);
       if (!data.empty()) {
+        inc_seq();
         auto pkt = struct_pack::deserialize<breeze_ipc::packet>(data);
         if (pkt.has_value()) {
           if (pkt->return_for_call != 0) {

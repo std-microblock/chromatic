@@ -7,7 +7,9 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "build"})
 
 add_rules("mode.releasedbg")
 
+includes("deps/blook.lua")
 includes("deps/breeze-js.lua")
+includes("deps/cpp-ipc.lua")
 
 add_requires("yalantinglibs b82a21925958b6c50deba3aa26a2737cdb814e27", {
     configs = {
@@ -25,14 +27,14 @@ add_requireconfs("**.async_simple", {
     version = "18f3882be354d407af0f0674121dcddaeff36e26"
 })
 
-add_requires("blook", "breeze-js", "reflect-cpp", "cpp-ipc", "cpptrace")
+add_requires("blook", "breeze-js", "reflect-cpp", "chromatic-cpp-ipc", "cpptrace")
 set_runtimes("MT")
 
 target("chromatic")
     set_kind("shared")
     add_defines("NOMINMAX")
     add_defines("_HAS_CXX23=1", "_HAS_CXX20=1", "_HAS_CXX17=1")
-    add_packages("blook", "breeze-js", "reflect-cpp", "yalantinglibs", "cpp-ipc", "cpptrace")
+    add_packages("blook", "breeze-js", "reflect-cpp", "yalantinglibs", "chromatic-cpp-ipc", "cpptrace")
     add_syslinks("oleacc", "ole32", "oleaut32", "uuid", "comctl32", "comdlg32", "gdi32", "user32", "shell32", "kernel32", "advapi32", "psapi")
     add_files("src/**/*.cc", "src/*.cc")
     set_encodings("utf-8")

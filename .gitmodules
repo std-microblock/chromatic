@@ -1,3 +1,6 @@
 [submodule "deps/blook"]
 	path = deps/blook
 	url = https://github.com/std-microblock/blook
+[submodule "deps/cpp-ipc"]
+	path = deps/cpp-ipc
+	url = https://github.com/std-microblock/cpp-ipc
