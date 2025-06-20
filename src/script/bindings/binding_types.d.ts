@@ -9,10 +9,10 @@ namespace chrome {
 export class blink {
 	/**
      * 
-     * @param arg0: ((arg1: chrome.blink.blink_parse_manipulate_context) => boolean)
+     * @param arg0: ((arg1: string) => string)
      * @returns void
      */
-    static add_blink_parse_html_manipulator(arg0: ((arg1: chrome.blink.blink_parse_manipulate_context) => boolean)): void
+    static add_blink_parse_html_manipulator(arg0: ((arg1: string) => string)): void
 	static is_parse_html_manipulator_available(): boolean
 }
 }

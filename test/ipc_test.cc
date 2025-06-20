@@ -1,9 +1,10 @@
 #include "ipc.h"
 #include "libipc/ipc.h"
+#include <chrono>
 #include <gtest/gtest.h>
 #include <print>
 #include <thread>
-#include <chrono>
+
 
 using namespace chromatic;
 
@@ -13,12 +14,11 @@ TEST(IPCTest, BasicMessageSendReceive) {
   ipc2.connect("test_channel");
 
   bool received = false;
-  auto remover = ipc2.add_listener("test_msg", [&](const breeze_ipc::packet& pkt) {
-    received = true;
-  });
+  auto remover = ipc2.add_listener(
+      "test_msg", [&](const breeze_ipc::packet &pkt) { received = true; });
 
   ipc1.send("test_msg", test_serializable_struct{1, 2.0f, {'a', 'b', 'c'}});
-  
+
   for (int i = 0; i < 10 && !received; ++i) {
     ipc1.poll();
     ipc2.poll();
@@ -33,13 +33,14 @@ TEST(IPCTest, RPCCall) {
   server.connect("rpc_channel");
   client.connect("rpc_channel");
 
-  auto remover = server.add_call_handler<int, int>("add_one", [](int x) {
-    return x + 1;
-  });
+  auto remover =
+      server.add_call_handler<int, int>("add_one", [](int x) { return x + 1; });
 
   auto future = client.call<int, int>("add_one", 5);
-  
-  for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready; ++i) {
+
+  for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
+                                std::future_status::ready;
+       ++i) {
     server.poll();
     client.poll();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -54,12 +55,13 @@ TEST(IPCTest, StringReturnRPC) {
   client.connect("string_rpc");
 
   auto remover = server.add_call_handler<std::string, std::string>(
-      "echo", [](const std::string& s) { return s; });
+      "echo", [](const std::string &s) { return s; });
 
   auto future = client.call<std::string, std::string>("echo", "hello world");
-  
+
   for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
-       std::future_status::ready; ++i) {
+                                std::future_status::ready;
+       ++i) {
     server.poll();
     client.poll();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -74,14 +76,13 @@ TEST(IPCTest, PairReturnRPC) {
   client.connect("pair_rpc");
 
   auto remover = server.add_call_handler<std::pair<int, std::string>, int>(
-      "make_pair", [](int x) {
-        return std::make_pair(x, std::to_string(x));
-      });
+      "make_pair", [](int x) { return std::make_pair(x, std::to_string(x)); });
 
   auto future = client.call<std::pair<int, std::string>, int>("make_pair", 42);
-  
+
   for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
-       std::future_status::ready; ++i) {
+                                std::future_status::ready;
+       ++i) {
     server.poll();
     client.poll();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -98,17 +99,18 @@ TEST(IPCTest, StringPairRPC) {
   client.connect("string_pair_rpc");
 
   auto remover = server.add_call_handler<std::pair<std::string, std::string>,
-                                       std::pair<std::string, std::string>>(
-      "concat_pair", [](const auto& p) {
+                                         std::pair<std::string, std::string>>(
+      "concat_pair", [](const auto &p) {
         return std::make_pair(p.first + p.second, p.second + p.first);
       });
 
   auto future = client.call<std::pair<std::string, std::string>,
-                           std::pair<std::string, std::string>>(
+                            std::pair<std::string, std::string>>(
       "concat_pair", std::make_pair("hello", "world"));
-  
+
   for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
-       std::future_status::ready; ++i) {
+                                std::future_status::ready;
+       ++i) {
     server.poll();
     client.poll();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -130,24 +132,24 @@ TEST(IPCTest, BlinkContextRPC) {
   client.connect("blink_rpc");
 
   auto remover = server.add_call_handler<blink_parse_manipulate_context,
-                                       blink_parse_manipulate_context>(
-      "process_html", [](const auto& ctx) {
+                                         blink_parse_manipulate_context>(
+      "process_html", [](const auto &ctx) {
         blink_parse_manipulate_context result = ctx;
         result.html += "<!-- processed -->";
         return result;
       });
 
-  blink_parse_manipulate_context original{
-      .html = "<html>test</html>",
-      .url = "http://example.com"
-  };
+  blink_parse_manipulate_context original{.html = "<html>test</html>",
+                                          .url = "http://example.com"};
 
-  auto future = client.call<blink_parse_manipulate_context,
-                           blink_parse_manipulate_context>(
-      "process_html", original);
-  
+  auto future =
+      client
+          .call<blink_parse_manipulate_context, blink_parse_manipulate_context>(
+              "process_html", original);
+
   for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
-       std::future_status::ready; ++i) {
+                                std::future_status::ready;
+       ++i) {
     server.poll();
     client.poll();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -161,7 +163,8 @@ TEST(IPCTest, BlinkContextRPC) {
 TEST(IPCTest, Serialization) {
   test_serializable_struct original{42, 3.14f, {'x', 'y', 'z'}};
   auto serialized = struct_pack::serialize(original);
-  auto deserialized = struct_pack::deserialize<test_serializable_struct>(serialized);
+  auto deserialized =
+      struct_pack::deserialize<test_serializable_struct>(serialized);
 
   ASSERT_TRUE(deserialized.has_value());
   EXPECT_EQ(deserialized->a, 42);
@@ -170,17 +173,20 @@ TEST(IPCTest, Serialization) {
   EXPECT_EQ(deserialized->c, vec);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
 
   auto channel = breeze_ipc{};
   channel.connect("chromatic://process/");
 
-  channel.add_listener("call_result_on_blink_parse_html_manipulate", [](const auto& result) {
-    std::println("Received result from blink parse HTML manipulate: name: {}, seq: {}, data size: {}",
-                 result.name, result.seq, result.data.size());
-  });
+  channel.add_call_handler<std::string, std::string>(
+      "on_blink_parse_html_manipulate",
+      [](const std::string &ctx) {
+        std::println("on_blink_parse_html_manipulate called with: {}", ctx);
+        return "Processed: " + ctx;
+      });
 
-  while(1);
+  while (1)
+    ;
 
   testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

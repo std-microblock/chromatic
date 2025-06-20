@@ -19,7 +19,7 @@ struct chrome {
       std::string url;
     };
     static void add_blink_parse_html_manipulator(
-        std::function<bool(std::shared_ptr<blink_parse_manipulate_context>)>);
+        std::function<std::string(std::string)>);
 
     static bool is_parse_html_manipulator_available() {
       return chromatic::blink_parse_html_manipulator::is_available();

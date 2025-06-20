@@ -15,9 +15,7 @@
 
 #include "../script/bindings/binding_types.h"
 
-extern std::list<std::function<bool(
-    std::shared_ptr<
-        chromatic::js::chrome::blink::blink_parse_manipulate_context>)>>
+extern std::list<std::function<std::string(std::string)>>
     blink_parse_html_manipulators;
 
 namespace chromatic {
@@ -40,19 +38,6 @@ void blink_parse_html_manipulator::install() {
   }
 
   ELOGFMT(INFO, "checking for cached symbol for HTMLParser__AppendBytes");
-
-x:
-  ELOGFMT(INFO, "chheck!");
-  auto res = context::current->process_ipc.call<std::string>(
-      "on_blink_parse_html_manipulate", std::string("xxx"));
-  ELOGFMT(INFO, "passed!");
-
-  if (!res.valid() ||
-      res.wait_for(std::chrono::seconds(3)) != std::future_status::ready) {
-    ELOGFMT(WARN, "BlinkHtmlParserHook::install() - IPC call timed out.");
-  }
-  goto x;
-  return;
 
   auto &chrome = context::current->type.chrome_module;
 
@@ -124,19 +109,16 @@ x:
       BlinkHTMLData html_data{.data = span_data, .replacement = {}};
       ELOGFMT(INFO, "BlinkHtmlParserHook::install() - BeforeParse");
 
-      auto res = context::current->process_ipc
-                     .call<js::chrome::blink::blink_parse_manipulate_context>(
-                         "on_blink_parse_html_manipulate",
-                         js::chrome::blink::blink_parse_manipulate_context{
-                             .html = std::string(html_data.data.data(),
-                                                 html_data.data.size()),
-                             .url = ""})
-                     .get();
-      if (res.html !=
-          std::string_view(html_data.data.data(), html_data.data.size())) {
+      auto res = context::current->process_ipc.call_and_poll<std::string>(
+          "on_blink_parse_html_manipulate",
+          std::string(html_data.data.data(), html_data.data.size()));
+
+      if (res.has_value() &&
+          res.value() !=
+              std::string_view(html_data.data.data(), html_data.data.size())) {
         ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Replacement found");
         html_data.replacement =
-            std::vector<char>(res.html.begin(), res.html.end());
+            std::vector<char>(res.value().begin(), res.value().end());
       }
 
       ELOGFMT(INFO, "BlinkHtmlParserHook::install() - has replacement: {}",
@@ -153,46 +135,43 @@ x:
     ELOGFMT(INFO,
             "BlinkHtmlParserHook::install() - Using newer function signature");
     HTMLParser__AppendBytes_Hook->install(+[](void *self, BlinkUtilSpan &data) {
-      context::current->process_ipc
-          .call<std::string>("on_blink_parse_html_manipulate",
-                             std::string("xxx"))
-          .get();
-
       ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Hooked");
       auto span_data =
           std::span<char>(reinterpret_cast<char *>(data.data), data.size);
       std::vector<std::shared_ptr<std::any>> contexts;
       BlinkHTMLData html_data{.data = span_data, .replacement = {}};
 
-      js::chrome::blink::blink_parse_manipulate_context res = {
-          .html = std::string(html_data.data.data(), html_data.data.size()),
-          .url = ""};
-      if (res.html.contains("html>")) {
-        // replace html> to html><h1>hi</h1>
-        res.html =
-            res.html.replace(res.html.find("html>"), 5, R"(html><div style="
-    position: fixed;
-    left: 13px;
-    top: 11px;
-    background: #00000022;
-    color: white;
-    z-index: 9999;
-    backdrop-filter: blur(20px);
-    padding: 10px 20px;
-    font-size: 15px;
-    border-radius: 100px;
-    overflow: hidden;
-    border: 1px solid #00000038;
-    font-family: Consolas;
-">Chromatic</div>)");
-      }
+      auto html = std::string(html_data.data.data(), html_data.data.size());
 
-      if (res.html !=
-          std::string_view(html_data.data.data(), html_data.data.size())) {
+      if (auto res = context::current->process_ipc.call_and_poll<std::string>(
+              "on_blink_parse_html_manipulate", html);
+          res && res.value() != html) {
         ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Replacement found");
         html_data.replacement =
-            std::vector<char>(res.html.begin(), res.html.end());
+            std::vector<char>(res.value().begin(), res.value().end());
       }
+
+//       if (html.contains("html>")) {
+//         // replace html> to html><h1>hi</h1>
+//         html = html.replace(html.find("html>"), 5, R"(html><div style="
+//     position: fixed;
+//     left: 13px;
+//     top: 11px;
+//     background: #00000022;
+//     color: white;
+//     z-index: 9999;
+//     backdrop-filter: blur(20px);
+//     padding: 10px 20px;
+//     font-size: 15px;
+//     border-radius: 100px;
+//     overflow: hidden;
+//     border: 1px solid #00000038;
+//     font-family: Consolas;
+// ">Chromatic</div>)");
+
+//         html_data.replacement = std::vector<char>(html.begin(), html.end());
+//         ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Replacement applied");
+//       }
 
       auto blink_span =
           html_data.replacement.has_value()
@@ -224,24 +203,14 @@ bool blink_parse_html_manipulator::is_available() {
 
 void blink_parse_html_manipulator::register_js() {
   context::current->process_ipc.add_call_handler<std::string, std::string>(
-      "on_blink_parse_html_manipulate", [](std::string ctx) {
-        // ELOGFMT(INFO, "on_blink_parse_html_manipulate called with url: {}",
-        //         ctx.url);
+      "on_blink_parse_html_manipulate", [](std::string html) {
+        for (auto &manipulator : blink_parse_html_manipulators) {
+          if (auto res = manipulator(html); !res.empty()) {
+            html = res;
+          }
+        }
 
-        // for (auto &manipulator : blink_parse_html_manipulators) {
-        //   auto context = std::make_shared<
-        //       js::chrome::blink::blink_parse_manipulate_context>(ctx.html,
-        //                                                          ctx.url);
-        //   if (manipulator(context)) {
-        //     ctx.html = context->html;
-        //   }
-        // }
-
-        ELOGFMT(INFO, "on_blink_parse_html_manipulate finished");
-
-        // return ctx;
-        return "aaa";
-        // return true;
+        return html;
       });
 }
 } // namespace chromatic

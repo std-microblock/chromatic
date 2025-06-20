@@ -4,25 +4,23 @@
 #include "breeze-js/quickjspp.hpp"
 #include "ylt/easylog.hpp"
 
-std::list<std::function<bool(
-    std::shared_ptr<
-        chromatic::js::chrome::blink::blink_parse_manipulate_context>)>>
+std::list<std::function<std::string(std::string)>>
     blink_parse_html_manipulators;
 namespace chromatic::js {
 void chrome::blink::add_blink_parse_html_manipulator(
-    std::function<bool(std::shared_ptr<blink_parse_manipulate_context>)>
+    std::function<std::string(std::string)>
         manipulator) {
   blink_parse_html_manipulators.push_back(
-      [manipulator](std::shared_ptr<blink_parse_manipulate_context> ctx) {
+      [manipulator](std::string ctx) {
         try {
           return manipulator(ctx);
         } catch (const std::exception &e) {
           ELOGFMT(ERROR, "Exception in blink parse HTML manipulator: {}",
                   e.what());
-          return false;
+          return std::string();
         } catch (...) {
           ELOGFMT(ERROR, "Unknown exception in blink parse HTML manipulator");
-          return false;
+          return std::string();
         }
       });
 }

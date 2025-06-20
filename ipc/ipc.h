@@ -18,8 +18,9 @@
 #include "Windows.h"
 
 namespace chromatic {
+constexpr static bool use_struct_pack = true;
+constexpr static bool print_packages = false;
 
-constexpr static bool use_struct_pack = false;
 auto serialize = [](const auto &data) {
   if constexpr (use_struct_pack) {
     return struct_pack::serialize<std::string>(data);
@@ -66,24 +67,25 @@ struct breeze_ipc {
 
   void send(packet &&pkt) {
     if (auto data = serialize(pkt); !data.empty()) {
-      if constexpr (use_struct_pack) {
-
-        // for (size_t i = 0; i < data.size(); ++i) {
-        //   if (i % 16 == 0 && i != 0) {
-        //     printf("\n");
-        //   }
-        //   char buf[3];
-        //   snprintf(buf, sizeof(buf), "%02x ",
-        //            static_cast<unsigned char>(data[i]));
-        //   WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), buf, 2, nullptr,
-        //                 nullptr);
-        // }
-      } else {
-        if (GetConsoleWindow())
-        WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE),
-                      data.data(), static_cast<DWORD>(data.size()), nullptr,
-                      nullptr);
+      if constexpr (print_packages) {
+        if constexpr (use_struct_pack) {
+          for (size_t i = 0; i < data.size(); ++i) {
+            if (i % 16 == 0 && i != 0) {
+              printf("\n");
+            }
+            char buf[3];
+            snprintf(buf, sizeof(buf), "%02x ",
+                     static_cast<unsigned char>(data[i]));
+            WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), buf, 2, nullptr,
+                          nullptr);
+          }
+        } else {
+          if (GetConsoleWindow())
+            WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), data.data(),
+                          static_cast<DWORD>(data.size()), nullptr, nullptr);
+        }
       }
+
       channel.send(data.data(), data.size());
     }
   }
