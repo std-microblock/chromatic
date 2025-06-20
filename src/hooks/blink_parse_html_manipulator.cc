@@ -38,8 +38,22 @@ void blink_parse_html_manipulator::install() {
                   "Chrome module not found.");
     return;
   }
-  
+
   ELOGFMT(INFO, "checking for cached symbol for HTMLParser__AppendBytes");
+
+x:
+  ELOGFMT(INFO, "chheck!");
+  auto res = context::current->process_ipc.call<std::string>(
+      "on_blink_parse_html_manipulate", std::string("xxx"));
+  ELOGFMT(INFO, "passed!");
+
+  if (!res.valid() ||
+      res.wait_for(std::chrono::seconds(3)) != std::future_status::ready) {
+    ELOGFMT(WARN, "BlinkHtmlParserHook::install() - IPC call timed out.");
+  }
+  goto x;
+  return;
+
   auto &chrome = context::current->type.chrome_module;
 
   auto rdata = chrome->section(".rdata").value();
@@ -139,6 +153,11 @@ void blink_parse_html_manipulator::install() {
     ELOGFMT(INFO,
             "BlinkHtmlParserHook::install() - Using newer function signature");
     HTMLParser__AppendBytes_Hook->install(+[](void *self, BlinkUtilSpan &data) {
+      context::current->process_ipc
+          .call<std::string>("on_blink_parse_html_manipulate",
+                             std::string("xxx"))
+          .get();
+
       ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Hooked");
       auto span_data =
           std::span<char>(reinterpret_cast<char *>(data.data), data.size);
@@ -204,26 +223,25 @@ bool blink_parse_html_manipulator::is_available() {
 }
 
 void blink_parse_html_manipulator::register_js() {
-  context::current->process_ipc
-      .add_call_handler<js::chrome::blink::blink_parse_manipulate_context,
-                        js::chrome::blink::blink_parse_manipulate_context>(
-          "on_blink_parse_html_manipulate",
-          [](js::chrome::blink::blink_parse_manipulate_context ctx) {
-            ELOGFMT(INFO, "on_blink_parse_html_manipulate called with url: {}",
-                    ctx.url);
+  context::current->process_ipc.add_call_handler<std::string, std::string>(
+      "on_blink_parse_html_manipulate", [](std::string ctx) {
+        // ELOGFMT(INFO, "on_blink_parse_html_manipulate called with url: {}",
+        //         ctx.url);
 
-            for (auto &manipulator : blink_parse_html_manipulators) {
-              auto context = std::make_shared<
-                  js::chrome::blink::blink_parse_manipulate_context>(ctx.html,
-                                                                     ctx.url);
-              if (manipulator(context)) {
-                ctx.html = context->html;
-              }
-            }
+        // for (auto &manipulator : blink_parse_html_manipulators) {
+        //   auto context = std::make_shared<
+        //       js::chrome::blink::blink_parse_manipulate_context>(ctx.html,
+        //                                                          ctx.url);
+        //   if (manipulator(context)) {
+        //     ctx.html = context->html;
+        //   }
+        // }
 
-            ELOGFMT(INFO, "on_blink_parse_html_manipulate finished");
+        ELOGFMT(INFO, "on_blink_parse_html_manipulate finished");
 
-            return ctx;
-          });
+        // return ctx;
+        return "aaa";
+        // return true;
+      });
 }
 } // namespace chromatic

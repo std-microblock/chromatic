@@ -153,9 +153,10 @@ void context::detect_process_type() {
   }
 }
 void context::init_ipc() {
-  process_ipc.connect(std::format(
-      "chromatic://process/{}",
-      std::hash<std::string>{}(utils::current_executable_path().string())));
+//   process_ipc.connect(std::format(
+//       "chromatic://process/{}",
+//       std::hash<std::string>{}(utils::current_executable_path().string())));
+    process_ipc.connect("chromatic://process/");
 }
 void context::on_before_chrome_startup() {
   ELOGFMT(INFO, "on_before_chrome_startup called");

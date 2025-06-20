@@ -27,8 +27,20 @@ add_requireconfs("**.async_simple", {
     version = "18f3882be354d407af0f0674121dcddaeff36e26"
 })
 
-add_requires("blook", "breeze-js a52a734a11257824ab03932155c97149ecb450ac", "reflect-cpp", "chromatic-cpp-ipc", "cpptrace")
+add_requires("blook", "breeze-js a52a734a11257824ab03932155c97149ecb450ac", "reflect-cpp", "chromatic-cpp-ipc", "cpptrace", "gtest")
 set_runtimes("MT")
+
+target("chromatic_ipc")
+    set_kind("static")
+    add_defines("NOMINMAX")
+    add_defines("_HAS_CXX23=1", "_HAS_CXX20=1", "_HAS_CXX17=1")
+    add_packages("yalantinglibs", "reflect-cpp", "chromatic-cpp-ipc", {
+        public = true,
+    })
+    add_files("ipc/ipc.cc")
+    add_headerfiles("ipc/ipc.h")
+    add_includedirs("ipc", {public = true})
+    set_encodings("utf-8")
 
 target("chromatic")
     set_kind("shared")
@@ -37,4 +49,14 @@ target("chromatic")
     add_packages("blook", "breeze-js", "reflect-cpp", "yalantinglibs", "chromatic-cpp-ipc", "cpptrace")
     add_syslinks("oleacc", "ole32", "oleaut32", "uuid", "comctl32", "comdlg32", "gdi32", "user32", "shell32", "kernel32", "advapi32", "psapi")
     add_files("src/**/*.cc", "src/*.cc")
+    remove_files("src/ipc.cc")
+    add_deps("chromatic_ipc")
+    set_encodings("utf-8")
+
+target("chromatic_ipc_test")
+    set_kind("binary")
+    add_deps("chromatic_ipc")
+    add_packages("gtest", "yalantinglibs")
+    add_files("test/ipc_test.cc")
+    add_includedirs("src")
     set_encodings("utf-8")

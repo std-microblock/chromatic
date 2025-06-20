@@ -1,6 +1,7 @@
 #include "ipc.h"
 #include <print>
 #include <stdexcept>
+#include <string>
 
 #include "ylt/easylog.hpp"
 namespace chromatic {
@@ -13,6 +14,7 @@ void breeze_ipc::connect(std::string_view name) {
     ELOGFMT(INFO, "IPC thread started, listening for packets...");
     while (!exit_signal) {
       poll();
+      OutputDebugStringA("IPC thread polling...\n");
     }
   });
 }
@@ -26,7 +28,8 @@ bool breeze_ipc::poll() {
   auto data = channel.recv(100);
   if (!data.empty()) {
     inc_seq();
-    auto pkt = struct_pack::deserialize<breeze_ipc::packet>(data);
+    auto pkt = deserialize<breeze_ipc::packet>(std::string((char*)data.data(), data.size()));
+    OutputDebugStringA((char*)data.data());
     if (pkt.has_value()) {
       if (pkt->return_for_call != 0) {
         auto it = call_handlers.find(pkt->return_for_call);

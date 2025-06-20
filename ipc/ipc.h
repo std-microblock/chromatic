@@ -4,18 +4,43 @@
 #include <expected>
 #include <functional>
 #include <future>
+#include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
+#include "rfl.hpp"
+#include "rfl/json.hpp"
 #include "ylt/struct_pack.hpp"
+
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include "Windows.h"
 
 namespace chromatic {
 
+constexpr static bool use_struct_pack = false;
+auto serialize = [](const auto &data) {
+  if constexpr (use_struct_pack) {
+    return struct_pack::serialize<std::string>(data);
+  } else {
+    return rfl::json::write(data);
+  }
+};
+
+template <typename T> auto deserialize(const std::string &data) {
+  if constexpr (use_struct_pack) {
+    return struct_pack::deserialize<T>(data);
+  } else {
+    return rfl::json::read<T, rfl::NoExtraFields, rfl::DefaultIfMissing>(data);
+  }
+}
+
 template <typename T>
 concept StructPackSerializable = requires(T t) {
-  { struct_pack::serialize(t) } -> std::same_as<std::vector<char>>;
+  { serialize(t) } -> std::same_as<std::string>;
 
-  struct_pack::deserialize<T>(std::declval<std::vector<char>>());
+  deserialize<T>(std::declval<std::string>());
 };
 
 struct test_serializable_struct {
@@ -32,7 +57,7 @@ struct breeze_ipc {
     size_t seq;
     size_t return_for_call = 0;
     std::string name;
-    std::vector<char> data;
+    std::string data;
   };
 
   void connect(std::string_view name);
@@ -40,7 +65,25 @@ struct breeze_ipc {
   inline size_t inc_seq() { return seq++; }
 
   void send(packet &&pkt) {
-    if (auto data = struct_pack::serialize(pkt); !data.empty()) {
+    if (auto data = serialize(pkt); !data.empty()) {
+      if constexpr (use_struct_pack) {
+
+        // for (size_t i = 0; i < data.size(); ++i) {
+        //   if (i % 16 == 0 && i != 0) {
+        //     printf("\n");
+        //   }
+        //   char buf[3];
+        //   snprintf(buf, sizeof(buf), "%02x ",
+        //            static_cast<unsigned char>(data[i]));
+        //   WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE), buf, 2, nullptr,
+        //                 nullptr);
+        // }
+      } else {
+        if (GetConsoleWindow())
+        WriteConsoleA(GetStdHandle(STD_OUTPUT_HANDLE),
+                      data.data(), static_cast<DWORD>(data.size()), nullptr,
+                      nullptr);
+      }
       channel.send(data.data(), data.size());
     }
   }
@@ -53,7 +96,7 @@ struct breeze_ipc {
         .seq = inc_seq(),
         .return_for_call = 0,
         .name = name,
-        .data = struct_pack::serialize(data),
+        .data = serialize(data),
     });
   }
 
@@ -88,7 +131,7 @@ struct breeze_ipc {
                                 std::function<void(const T &)> &&handler) {
     return add_listener(
         name, [handler = std::move(handler)](const packet &pkt) {
-          auto data = struct_pack::deserialize<T>(pkt.data);
+          auto data = deserialize<T>(pkt.data);
           if (data.has_value()) {
             handler(data.value());
           } else {
@@ -103,7 +146,7 @@ struct breeze_ipc {
                    std::function<RetVal(const Arg &)> &&handler) {
     return add_listener("call_" + name, [this, handler = std::move(handler),
                                          name](const packet &pkt) {
-      auto data = struct_pack::deserialize<Arg>(pkt.data);
+      auto data = deserialize<Arg>(pkt.data);
       if (!data.has_value()) {
         throw std::runtime_error("Failed to deserialize call data for " + name);
       }
@@ -112,7 +155,7 @@ struct breeze_ipc {
           .seq = inc_seq(),
           .return_for_call = pkt.seq,
           .name = "call_result_" + name,
-          .data = struct_pack::serialize(result),
+          .data = serialize(result),
       });
     });
   }
@@ -131,12 +174,12 @@ struct breeze_ipc {
         .seq = seq,
         .return_for_call = 0,
         .name = "call_" + name,
-        .data = struct_pack::serialize(data),
+        .data = serialize(data),
     });
 
     auto promise = std::make_shared<std::promise<RetVal>>();
     call_handlers[seq] = [promise](const packet &pkt) {
-      auto result = struct_pack::deserialize<RetVal>(pkt.data);
+      auto result = deserialize<RetVal>(pkt.data);
       if (result.has_value()) {
         promise->set_value(std::move(result.value()));
       } else {
