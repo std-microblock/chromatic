@@ -11,7 +11,7 @@ namespace chromatic {
 struct context {
   static std::unique_ptr<context> current;
 
-  static void init();
+  static void init_singleton();
 
   struct process_type {
     enum chrome_type { main, renderer, gpu, utility, network };
@@ -26,8 +26,11 @@ struct context {
   std::unique_ptr<script_engine> script = nullptr;
 
   void init_ipc();
+  void init_context();
 
   context();
+
+  void on_before_chrome_startup();
 
 private:
   void detect_process_type();

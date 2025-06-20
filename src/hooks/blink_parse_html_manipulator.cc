@@ -34,21 +34,25 @@ struct BlinkUtilSpan {
 void blink_parse_html_manipulator::install() {
   if (context::current->type.chrome_type != context::process_type::renderer ||
       !context::current->type.chrome_module) {
+    ELOGFMT(WARN, "BlinkHtmlParserHook::install() - Not in renderer process or "
+                  "Chrome module not found.");
     return;
   }
-
+  
+  ELOGFMT(INFO, "checking for cached symbol for HTMLParser__AppendBytes");
   auto &chrome = context::current->type.chrome_module;
 
   auto rdata = chrome->section(".rdata").value();
   auto text = chrome->section(".text").value();
 
+  auto crc32 = text.crc32();
+
   static std::optional<blook::Function> HTMLParser__AppendBytes = {};
   if (auto res = context::current->process_ipc
-                     .call<size_t>("get_symbol",
-                                   std::string("HTMLParser__AppendBytes"))
-                     .get();
-      res) {
-    HTMLParser__AppendBytes = text.add(res).as_function();
+                     .call_and_poll<std::pair<size_t, int32_t>>(
+                         "get_symbol", std::string("HTMLParser__AppendBytes"));
+      res && res->first != 0 && res->second == crc32) {
+    HTMLParser__AppendBytes = text.add(res->first).as_function();
     ELOGFMT(INFO, "Using cached symbol for HTMLParser__AppendBytes: {}",
             HTMLParser__AppendBytes->data());
   } else {
@@ -81,12 +85,13 @@ void blink_parse_html_manipulator::install() {
         xref->find_upwards({0x56, 0x57}).value().as_function();
 
     context::current->process_ipc
-        .call<bool, std::pair<std::string, size_t>>(
+        .call<bool, std::pair<std::string, std::pair<size_t, int32_t>>>(
             "set_symbol",
             std::pair(
                 std::string("HTMLParser__AppendBytes"),
-                (size_t)(HTMLParser__AppendBytes->pointer() - text).data()))
-        .get();
+                std::pair(
+                    (size_t)(HTMLParser__AppendBytes->pointer() - text).data(),
+                    crc32)));
   }
 
   static auto HTMLParser__AppendBytes_Hook =
@@ -178,9 +183,8 @@ void blink_parse_html_manipulator::install() {
               : BlinkUtilSpan{reinterpret_cast<char *>(span_data.data()),
                               span_data.size()};
 
-      auto ret = HTMLParser__AppendBytes_Hook
-                     ->call_trampoline<void*>(
-                         self, blink_span);
+      auto ret = HTMLParser__AppendBytes_Hook->call_trampoline<void *>(
+          self, blink_span);
       return ret;
     });
   }

@@ -78,18 +78,22 @@ wait_for_module(std::function<bool(std::filesystem::path)> verifier) {
 }
 
 static std::future<std::shared_ptr<blook::Module>>
-wait_for_module(std::string_view module_name) {
+wait_for_module(std::string_view module_name,
+                std::function<void(void *)> callback) {
   if (module_name.empty()) {
     throw std::invalid_argument("Module name cannot be empty");
   }
 
   if (GetModuleHandleA(module_name.data()) != nullptr) {
-    return std::async(std::launch::deferred, [module_name =
-                                                  std::string(module_name)]() {
+    return std::async(std::launch::deferred, [&, module_name = std::string(
+                                                     module_name)]() {
+      callback(GetModuleHandleA(module_name.c_str()));
       return blook::Process::self()->module(std::string(module_name)).value();
     });
   }
-  return wait_for_module([module_name](std::filesystem::path path) {
+  return wait_for_module([module_name, callback = std::move(callback)](
+                             std::filesystem::path path) {
+    callback(GetModuleHandleW(path.filename().c_str()));
     return path.filename() == module_name;
   });
 };

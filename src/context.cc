@@ -13,8 +13,12 @@
 #include "Windows.h"
 #include "blook/blook.h"
 #include <debugapi.h>
+#include <fstream>
 #include <thread>
 #include <unordered_map>
+
+#include "rfl.hpp"
+#include "rfl/json.hpp"
 
 #include "./hooks/blink_parse_html_manipulator.h"
 #include "./hooks/disable-integrity.h"
@@ -23,7 +27,7 @@
 namespace chromatic {
 std::unique_ptr<context> context::current = nullptr;
 
-void context::init() {
+void context::init_singleton() {
   SetUnhandledExceptionFilter(+[](EXCEPTION_POINTERS *ep) -> long {
     ELOGFMT(FATAL, "Unhandled exception: {}", cpptrace::stacktrace::current());
     Sleep(1000);
@@ -33,6 +37,7 @@ void context::init() {
   CPPTRACE_TRY {
     if (!current) {
       current = std::make_unique<context>();
+      current->init_context();
     }
   }
   CPPTRACE_CATCH(const std::exception &e) {
@@ -46,7 +51,117 @@ void context::init() {
     Sleep(1000);
   }
 }
-context::context() {
+context::context() {}
+
+void context::detect_process_type() {
+  auto cmdline = std::wstring(GetCommandLineW());
+
+  auto &cfg = *config::current.get();
+  if (cfg.detector.chrome.enable) {
+    auto chrome_module = config::current->detector.chrome.chrome_module_name;
+
+    if (cmdline.find(L"--type=gpu") != std::wstring::npos) {
+      type.chrome_type = process_type::chrome_type::gpu;
+    } else if (cmdline.find(L"--type=renderer") != std::wstring::npos) {
+      type.chrome_type = process_type::chrome_type::renderer;
+    } else if (cmdline.find(L"--type=utility") != std::wstring::npos) {
+      type.chrome_type = process_type::chrome_type::utility;
+    } else if (cmdline.find(L"--type=network") != std::wstring::npos) {
+      type.chrome_type = process_type::chrome_type::network;
+    } else if (cmdline.find(L"--type=") == std::wstring::npos) {
+      type.chrome_type = process_type::chrome_type::main;
+    }
+
+    if (type.chrome_type) {
+      ELOGFMT(INFO, "Detected Chrome process type: {}",
+              static_cast<int>(type.chrome_type.value()));
+    } else {
+      ELOGFMT(WARN, "Failed to detect Chrome process type.");
+    }
+
+    auto proc = blook::Process::self();
+    if (chrome_module == "") {
+      std::shared_ptr<blook::Module> chrome_mod;
+      if (auto mod = proc->module("chrome.dll")) {
+        chrome_mod = mod.value();
+      } else if (auto mod = proc->module("chromium.dll")) {
+        chrome_mod = mod.value();
+      } else if (auto mod = proc->module("libcef.dll")) {
+        chrome_mod = mod.value();
+      } else if (auto mod = proc->process_module()) {
+        chrome_mod = mod.value();
+      }
+
+      // verify if the module is actually chrome
+      constexpr auto chrome_signature =
+          "\\content\\browser\\renderer_host\\debug_urls.cc";
+      if (chrome_mod && chrome_mod->section(".rdata") &&
+          chrome_mod->section(".rdata")->find_one(chrome_signature)) {
+        type.chrome_module = chrome_mod;
+      } else {
+        type.chrome_module = {};
+      }
+
+      if (type.chrome_module) {
+        on_before_chrome_startup();
+      }
+    } else {
+      if (GetModuleHandleW(utils::utf8_to_wstring(chrome_module).c_str())) {
+        type.chrome_module =
+            proc->module(
+                    std::filesystem::path(chrome_module).filename().string())
+                .value();
+
+        on_before_chrome_startup();
+      } else {
+        ELOGFMT(WARN, "Chrome module {} not found, waiting for it to load...",
+                chrome_module);
+
+        hooks::wait_for_module_load::wait_for_module(
+            chrome_module,
+            [this](void *mod) {
+              if (mod) {
+                ELOGFMT(INFO, "Chrome module {} loaded", mod);
+                type.chrome_module =
+                    blook::Process::self()
+                        ->module(
+                            utils::get_module_path(mod).filename().string())
+                        .value();
+
+                auto entry_hook =
+                    type.chrome_module->entry_point()->inline_hook();
+                entry_hook->install(
+                    [this, entry_hook](size_t a, size_t b, size_t c) {
+                      on_before_chrome_startup();
+                      return entry_hook->call_trampoline<size_t>(a, b, c);
+                    });
+              } else {
+                ELOGFMT(ERROR, "Failed to load Chrome module");
+              }
+            })
+            .wait();
+      }
+    }
+
+    if (type.chrome_module) {
+      ELOGFMT(
+          INFO, "Detected Chrome module: {}",
+          utils::get_module_path(type.chrome_module->base().data()).string());
+    } else {
+      ELOGFMT(WARN, "Chrome module not found, some features may not work.");
+    }
+  }
+}
+void context::init_ipc() {
+  process_ipc.connect(std::format(
+      "chromatic://process/{}",
+      std::hash<std::string>{}(utils::current_executable_path().string())));
+}
+void context::on_before_chrome_startup() {
+  ELOGFMT(INFO, "on_before_chrome_startup called");
+  blink_parse_html_manipulator::install();
+}
+void context::init_context() {
   auto cmdline = std::wstring(GetCommandLineW());
 
   ELOGFMT(INFO, "Command line: {}", utils::wstring_to_utf8(cmdline));
@@ -60,6 +175,8 @@ context::context() {
   AllocConsole();
   freopen("CONOUT$", "w", stdout);
   freopen("CONOUT$", "w", stderr);
+
+  init_ipc();
 
   if (is_probably_main) {
     DWORD mode;
@@ -85,7 +202,6 @@ context::context() {
 
     hooks::windows::disable_integrity();
 
-    init_ipc();
     config::run_config_loader();
     config::on_reload.push_back([this]() {
       ELOGFMT(INFO, "Config reloaded, broadcasting to other processes.");
@@ -109,27 +225,48 @@ context::context() {
       detect_process_type();
       script = std::make_unique<script_engine>();
 
-      static std::unordered_map<std::string, size_t> symbol_cache;
-      process_ipc.add_call_handler<bool, std::pair<std::string, size_t>>(
+      static std::unordered_map<std::string, std::pair<size_t, int32_t>>
+          symbol_cache;
+
+      auto symbols_file = config::data_directory() / "symbols.json";
+      if (std::filesystem::exists(symbols_file)) {
+        try {
+          std::ifstream ifs(symbols_file, std::ios::binary);
+          if (ifs) {
+            symbol_cache = rfl::json::read<std::unordered_map<
+                std::string, std::pair<size_t, int32_t>>>(ifs)
+                               .value();
+          }
+        } catch (const std::exception &e) {
+          ELOGFMT(ERROR, "Failed to read symbols from {}: {}",
+                  symbols_file.string(), e.what());
+        }
+      }
+
+      process_ipc.add_call_handler<
+          bool, std::pair<std::string, std::pair<size_t, int32_t>>>(
           "set_symbol", [](auto &symbol) {
             symbol_cache[symbol.first] = symbol.second;
+            std::ofstream ofs(config::data_directory() / "symbols.json",
+                              std::ios::binary | std::ios::trunc);
+            if (ofs) {
+              ofs << rfl::json::write(symbol_cache);
+            }
             return true;
           });
 
-      process_ipc.add_call_handler<size_t, std::string>(
+      process_ipc.add_call_handler<std::pair<size_t, int32_t>, std::string>(
           "get_symbol", [](const std::string &name) {
             auto it = symbol_cache.find(name);
             if (it != symbol_cache.end()) {
               return it->second;
             }
-            return static_cast<size_t>(0);
+            return std::pair<size_t, int32_t>{0, 0};
           });
 
       blink_parse_html_manipulator::register_js();
     }).detach();
   } else if (cmdline.find(L"--type=renderer") != std::wstring::npos) {
-    init_ipc();
-
     easylog::add_appender([this](std::string_view msg) {
       process_ipc.call<bool, std::string>("log", std::string(msg));
     });
@@ -140,94 +277,26 @@ context::context() {
       config::current = std::make_unique<config>(cfg);
     });
 
-    std::thread([this]() {
-      auto p = process_ipc.call<config>("get_config");
-      p.wait_for(std::chrono::seconds(1));
-      if (p.valid() &&
-          p.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-        config::current = std::make_unique<config>(p.get());
-      } else {
-        ELOGFMT(WARN, "Failed to get config from main process, using default.");
-        config::current = std::make_unique<config>();
+    auto p = process_ipc.call<config>("get_config");
+    for (int i = 0; i < 50; i++)
+      if (p.valid() && p.wait_for(std::chrono::milliseconds(0)) ==
+                           std::future_status::timeout) {
+        process_ipc.poll();
       }
 
-      ELOGFMT(INFO, "Chromatic v0.0.0, initialized as renderer process.");
-
-      ELOGFMT(INFO, "Config loaded: {}", config::current->dump_config());
-
-      detect_process_type();
-      blink_parse_html_manipulator::install();
-    }).detach();
-  }
-}
-
-void context::detect_process_type() {
-  auto cmdline = std::wstring(GetCommandLineW());
-
-  auto &cfg = *config::current.get();
-  if (cfg.detector.chrome.enable) {
-    auto chrome_module = config::current->detector.chrome.chrome_module_name;
-
-    auto proc = blook::Process::self();
-    if (chrome_module == "") {
-      std::shared_ptr<blook::Module> chrome_mod;
-      if (auto mod = proc->module("chrome.dll")) {
-        chrome_mod = mod.value();
-      } else if (auto mod = proc->module("chromium.dll")) {
-        chrome_mod = mod.value();
-      } else if (auto mod = proc->process_module()) {
-        chrome_mod = mod.value();
-      }
-
-      // verify if the module is actually chrome
-      constexpr auto chrome_signature =
-          "\\content\\browser\\renderer_host\\debug_urls.cc";
-      if (chrome_mod && chrome_mod->section(".rdata") &&
-          chrome_mod->section(".rdata")->find_one(chrome_signature)) {
-        type.chrome_module = chrome_mod;
-      } else {
-        type.chrome_module = {};
-      }
+    if (p.valid() &&
+        p.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+      config::current = std::make_unique<config>(p.get());
     } else {
-      if (GetModuleHandleW(utils::utf8_to_wstring(chrome_module).c_str())) {
-        type.chrome_module =
-            proc->module(
-                    std::filesystem::path(chrome_module).filename().string())
-                .value();
-      } else {
-        ELOGFMT(WARN, "Chrome module {} not found, waiting for it to load...",
-                chrome_module);
-
-        type.chrome_module =
-            hooks::wait_for_module_load::wait_for_module(chrome_module).get();
-      }
+      ELOGFMT(WARN, "Failed to get config from main process, using default.");
+      config::current = std::make_unique<config>();
     }
 
-    if (type.chrome_module) {
-      if (cmdline.find(L"--type=gpu") != std::wstring::npos) {
-        type.chrome_type = process_type::chrome_type::gpu;
-      } else if (cmdline.find(L"--type=renderer") != std::wstring::npos) {
-        type.chrome_type = process_type::chrome_type::renderer;
-      } else if (cmdline.find(L"--type=utility") != std::wstring::npos) {
-        type.chrome_type = process_type::chrome_type::utility;
-      } else if (cmdline.find(L"--type=network") != std::wstring::npos) {
-        type.chrome_type = process_type::chrome_type::network;
-      } else if (cmdline.find(L"--type=") == std::wstring::npos) {
-        type.chrome_type = process_type::chrome_type::main;
-      }
+    ELOGFMT(INFO, "Chromatic v0.0.0, initialized as renderer process.");
 
-      if (type.chrome_type) {
-        ELOGFMT(
-            INFO, "Detected Chrome process type: {}, module: {}",
-            static_cast<int>(type.chrome_type.value()),
-            utils::get_module_path(type.chrome_module->base().data()).string());
-      } else {
-        ELOGFMT(WARN, "Failed to detect Chrome process type.");
-      }
-    } else {
-      ELOGFMT(WARN, "Chrome module not found.");
-    }
+    ELOGFMT(INFO, "Config loaded: {}", config::current->dump_config());
+
+    detect_process_type();
   }
 }
-void context::init_ipc() { process_ipc.connect("chromatic://process"); }
 } // namespace chromatic

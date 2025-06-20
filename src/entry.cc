@@ -23,7 +23,7 @@ int main() {
   easylog::add_appender(
       [](std::string_view msg) { OutputDebugStringA(msg.data()); });
 
-  context::init();
+  context::init_singleton();
   return 0;
 }
 
