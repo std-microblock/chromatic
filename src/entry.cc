@@ -39,7 +39,6 @@ int APIENTRY DllMain(HINSTANCE hInstance, DWORD fdwReason, LPVOID lpvReserved) {
     }
 
     chromatic::main();
-
     break;
   }
   }

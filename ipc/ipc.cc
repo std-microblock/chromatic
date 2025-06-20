@@ -14,7 +14,6 @@ void breeze_ipc::connect(std::string_view name) {
     ELOGFMT(INFO, "IPC thread started, listening for packets...");
     while (!exit_signal) {
       poll();
-      OutputDebugStringA("IPC thread polling...\n");
     }
   });
 }
@@ -27,15 +26,13 @@ breeze_ipc::~breeze_ipc() {
 bool breeze_ipc::poll() {
   auto data = channel.recv(100);
   if (!data.empty()) {
-    inc_seq();
     auto pkt = deserialize<breeze_ipc::packet>(std::string((char*)data.data(), data.size()));
-    OutputDebugStringA((char*)data.data());
     if (pkt.has_value()) {
       if (pkt->return_for_call != 0) {
         auto it = call_handlers.find(pkt->return_for_call);
         if (it != call_handlers.end()) {
           it->second(*pkt);
-          call_handlers.erase(it);
+          call_handlers.erase(it->first);
         }
       } else {
         auto &handler_list = handlers[pkt->name];

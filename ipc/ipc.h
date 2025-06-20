@@ -18,7 +18,7 @@
 #include "Windows.h"
 
 namespace chromatic {
-constexpr static bool use_struct_pack = true;
+constexpr static bool use_struct_pack = false;
 constexpr static bool print_packages = false;
 
 auto serialize = [](const auto &data) {
@@ -172,13 +172,6 @@ struct breeze_ipc {
   template <StructPackSerializable RetVal, StructPackSerializable R>
   std::future<RetVal> call(const std::string &name, const R &data) {
     auto seq = inc_seq();
-    send(packet{
-        .seq = seq,
-        .return_for_call = 0,
-        .name = "call_" + name,
-        .data = serialize(data),
-    });
-
     auto promise = std::make_shared<std::promise<RetVal>>();
     call_handlers[seq] = [promise](const packet &pkt) {
       auto result = deserialize<RetVal>(pkt.data);
@@ -189,6 +182,14 @@ struct breeze_ipc {
             std::make_exception_ptr(std::runtime_error("Call failed")));
       }
     };
+
+    send(packet{
+        .seq = seq,
+        .return_for_call = 0,
+        .name = "call_" + name,
+        .data = serialize(data),
+    });
+
 
     return promise->get_future();
   }

@@ -143,35 +143,15 @@ void blink_parse_html_manipulator::install() {
 
       auto html = std::string(html_data.data.data(), html_data.data.size());
 
-      if (auto res = context::current->process_ipc.call_and_poll<std::string>(
-              "on_blink_parse_html_manipulate", html);
-          res && res.value() != html) {
+      if (auto res = context::current->process_ipc
+                         .call<std::string, std::string>(
+                             "on_blink_parse_html_manipulate", html)
+                         .get();
+          res != html) {
         ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Replacement found");
         html_data.replacement =
-            std::vector<char>(res.value().begin(), res.value().end());
+            std::vector<char>(res.begin(), res.end());
       }
-
-//       if (html.contains("html>")) {
-//         // replace html> to html><h1>hi</h1>
-//         html = html.replace(html.find("html>"), 5, R"(html><div style="
-//     position: fixed;
-//     left: 13px;
-//     top: 11px;
-//     background: #00000022;
-//     color: white;
-//     z-index: 9999;
-//     backdrop-filter: blur(20px);
-//     padding: 10px 20px;
-//     font-size: 15px;
-//     border-radius: 100px;
-//     overflow: hidden;
-//     border: 1px solid #00000038;
-//     font-family: Consolas;
-// ">Chromatic</div>)");
-
-//         html_data.replacement = std::vector<char>(html.begin(), html.end());
-//         ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Replacement applied");
-//       }
 
       auto blink_span =
           html_data.replacement.has_value()
@@ -203,14 +183,24 @@ bool blink_parse_html_manipulator::is_available() {
 
 void blink_parse_html_manipulator::register_js() {
   context::current->process_ipc.add_call_handler<std::string, std::string>(
-      "on_blink_parse_html_manipulate", [](std::string html) {
+      "on_blink_parse_html_manipulate", [](const std::string &_html) {
+        auto html = _html;
         for (auto &manipulator : blink_parse_html_manipulators) {
-          if (auto res = manipulator(html); !res.empty()) {
-            html = res;
+          try {
+            if (auto res = manipulator(html); !res.empty()) {
+              html = res;
+            }
+          } catch (const std::exception &e) {
+            ELOGFMT(ERROR, "Error in blink_parse_html_manipulator: {}",
+                    e.what());
+          } catch (...) {
+            ELOGFMT(ERROR, "Unknown error in blink_parse_html_manipulator");
           }
         }
-
         return html;
       });
+
+  context::current->script->ctx.on_bind.push_back(
+      []() { blink_parse_html_manipulators.clear(); });
 }
 } // namespace chromatic

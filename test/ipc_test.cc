@@ -5,7 +5,6 @@
 #include <print>
 #include <thread>
 
-
 using namespace chromatic;
 
 TEST(IPCTest, BasicMessageSendReceive) {
@@ -19,12 +18,8 @@ TEST(IPCTest, BasicMessageSendReceive) {
 
   ipc1.send("test_msg", test_serializable_struct{1, 2.0f, {'a', 'b', 'c'}});
 
-  for (int i = 0; i < 10 && !received; ++i) {
-    ipc1.poll();
-    ipc2.poll();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-
+  std::this_thread::sleep_for(
+      std::chrono::milliseconds(100)); // Give time for IPC to process
   EXPECT_TRUE(received);
 }
 
@@ -37,14 +32,6 @@ TEST(IPCTest, RPCCall) {
       server.add_call_handler<int, int>("add_one", [](int x) { return x + 1; });
 
   auto future = client.call<int, int>("add_one", 5);
-
-  for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
-                                std::future_status::ready;
-       ++i) {
-    server.poll();
-    client.poll();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
 
   EXPECT_EQ(future.get(), 6);
 }
@@ -59,14 +46,6 @@ TEST(IPCTest, StringReturnRPC) {
 
   auto future = client.call<std::string, std::string>("echo", "hello world");
 
-  for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
-                                std::future_status::ready;
-       ++i) {
-    server.poll();
-    client.poll();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-
   EXPECT_EQ(future.get(), "hello world");
 }
 
@@ -79,14 +58,6 @@ TEST(IPCTest, PairReturnRPC) {
       "make_pair", [](int x) { return std::make_pair(x, std::to_string(x)); });
 
   auto future = client.call<std::pair<int, std::string>, int>("make_pair", 42);
-
-  for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
-                                std::future_status::ready;
-       ++i) {
-    server.poll();
-    client.poll();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
 
   auto result = future.get();
   EXPECT_EQ(result.first, 42);
@@ -107,14 +78,6 @@ TEST(IPCTest, StringPairRPC) {
   auto future = client.call<std::pair<std::string, std::string>,
                             std::pair<std::string, std::string>>(
       "concat_pair", std::make_pair("hello", "world"));
-
-  for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
-                                std::future_status::ready;
-       ++i) {
-    server.poll();
-    client.poll();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
 
   auto result = future.get();
   EXPECT_EQ(result.first, "helloworld");
@@ -147,14 +110,6 @@ TEST(IPCTest, BlinkContextRPC) {
           .call<blink_parse_manipulate_context, blink_parse_manipulate_context>(
               "process_html", original);
 
-  for (int i = 0; i < 10 && future.wait_for(std::chrono::milliseconds(0)) !=
-                                std::future_status::ready;
-       ++i) {
-    server.poll();
-    client.poll();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
-
   auto result = future.get();
   EXPECT_EQ(result.html, "<html>test</html><!-- processed -->");
   EXPECT_EQ(result.url, "http://example.com");
@@ -175,19 +130,64 @@ TEST(IPCTest, Serialization) {
 
 int main(int argc, char **argv) {
 
-  auto channel = breeze_ipc{};
-  channel.connect("chromatic://process/");
+  // auto channel = breeze_ipc{};
+  // channel.connect("chromatic://process/");
 
-  channel.add_call_handler<std::string, std::string>(
-      "on_blink_parse_html_manipulate",
-      [](const std::string &ctx) {
-        std::println("on_blink_parse_html_manipulate called with: {}", ctx);
-        return "Processed: " + ctx;
-      });
+  // channel.add_call_handler<std::string, std::string>(
+  //     "on_blink_parse_html_manipulate",
+  //     [](const std::string &ctx) {
+  //       std::println("on_blink_parse_html_manipulate called with: {}", ctx);
+  //       return "Processed: " + ctx;
+  //     });
 
-  while (1)
-    ;
+  // while (1)
+  //   ;
 
-  testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  std::string arg(argc > 1 ? argv[1] : "");
+  if (arg == "inspect") {
+    ipc::channel channel;
+    if (!channel.connect("chromatic://process/")) {
+      std::cerr << "Failed to connect to IPC channel." << std::endl;
+      return 1;
+    }
+
+    std::cout << "Connected to IPC channel." << std::endl;
+
+    std::thread input_thread([&channel]() {
+      while (true) {
+        std::string input;
+        std::getline(std::cin, input);
+        channel.send(input);
+      }
+    });
+
+    while (true) {
+      auto data = channel.recv(100);
+      if (!data.empty()) {
+        std::cout << "\033[47;30m["
+                  << std::chrono::system_clock::now().time_since_epoch().count()
+                  << "] \033[47;0m";
+
+        if (*(char *)data.data() == '{') {
+          // Assuming it's a JSON string
+          std::string json_str((char *)data.data(), data.size());
+          std::cout << "JSON: " << json_str << "\n";
+        } else {
+          // Print as hex
+          std::cout << "Hex: ";
+          for (size_t i = 0; i < data.size(); ++i) {
+            if (i % 16 == 0 && i != 0) {
+              std::cout << "\n";
+            }
+            std::cout << std::hex << static_cast<int>(((char *)data.data())[i])
+                      << " ";
+          }
+          std::cout << std::dec << "\n";
+        }
+      }
+    }
+  } else {
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+  }
 }

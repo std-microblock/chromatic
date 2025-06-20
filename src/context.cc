@@ -153,10 +153,10 @@ void context::detect_process_type() {
   }
 }
 void context::init_ipc() {
-//   process_ipc.connect(std::format(
-//       "chromatic://process/{}",
-//       std::hash<std::string>{}(utils::current_executable_path().string())));
-    process_ipc.connect("chromatic://process/");
+  //   process_ipc.connect(std::format(
+  //       "chromatic://process/{}",
+  //       std::hash<std::string>{}(utils::current_executable_path().string())));
+  process_ipc.connect("chromatic://process/");
 }
 void context::on_before_chrome_startup() {
   ELOGFMT(INFO, "on_before_chrome_startup called");
@@ -173,14 +173,14 @@ void context::init_context() {
     return;
   }
 
-  AllocConsole();
-  freopen("CONOUT$", "w", stdout);
-  freopen("CONOUT$", "w", stderr);
-
   init_ipc();
 
   if (is_probably_main) {
     DWORD mode;
+    AllocConsole();
+    freopen("CONOUT$", "w", stdout);
+    freopen("CONOUT$", "w", stderr);
+
     static HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
     GetConsoleMode(h, &mode);
     SetConsoleMode(h, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);

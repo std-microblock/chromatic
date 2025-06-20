@@ -3,7 +3,7 @@
 
 namespace chromatic {
 struct script_engine {
-  std::unique_ptr<breeze::script_context> ctx = nullptr;
+  breeze::script_context ctx;
 
   script_engine();
   ~script_engine();
