@@ -171,7 +171,7 @@ int main(int argc, char **argv) {
         if (*(char *)data.data() == '{') {
           // Assuming it's a JSON string
           std::string json_str((char *)data.data(), data.size());
-          std::cout << "JSON: " << json_str << "\n";
+          std::println("JSON: {}", json_str);
         } else {
           // Print as hex
           std::cout << "Hex: ";

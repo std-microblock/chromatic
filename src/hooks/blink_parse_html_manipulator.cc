@@ -32,12 +32,13 @@ struct BlinkUtilSpan {
 void blink_parse_html_manipulator::install() {
   if (context::current->type.chrome_type != context::process_type::renderer ||
       !context::current->type.chrome_module) {
-    ELOGFMT(WARN, "BlinkHtmlParserHook::install() - Not in renderer process or "
-                  "Chrome module not found.");
+    ELOGFMT(WARN, "BlinkParseHTMLManipulator: Not in renderer process or "
+                  "Chrome module not found");
     return;
   }
 
-  ELOGFMT(INFO, "checking for cached symbol for HTMLParser__AppendBytes");
+  ELOGFMT(INFO, "BlinkParseHTMLManipulator: Checking for cached symbol "
+                "HTMLParser__AppendBytes");
 
   auto &chrome = context::current->type.chrome_module;
 
@@ -52,33 +53,37 @@ void blink_parse_html_manipulator::install() {
                          "get_symbol", std::string("HTMLParser__AppendBytes"));
       res && res->first != 0 && res->second == crc32) {
     HTMLParser__AppendBytes = text.add(res->first).as_function();
-    ELOGFMT(INFO, "Using cached symbol for HTMLParser__AppendBytes: {}",
+    ELOGFMT(INFO,
+            "BlinkParseHTMLManipulator: Using cached symbol "
+            "HTMLParser__AppendBytes at {}",
             HTMLParser__AppendBytes->data());
   } else {
     auto appendBytesText = rdata.find_one("HTMLDocumentParser::appendBytes");
     if (!appendBytesText) {
       ELOGFMT(WARN,
-              "HTMLDocumentParser::appendBytes not found in rdata section.");
+              "BlinkParseHTMLManipulator: HTMLDocumentParser::appendBytes not "
+              "found in rdata section");
       return;
     }
 
     ELOGFMT(INFO,
-            "string \"HTMLDocumentParser::appendBytes\" found at {} in rdata "
-            "section.",
+            "BlinkParseHTMLManipulator: Found HTMLDocumentParser::appendBytes "
+            "string at {} in rdata section",
             appendBytesText.value().data());
 
     auto xref = text.find_xref(appendBytesText.value());
 
     if (!xref) {
       ELOGFMT(WARN,
-              "HTMLDocumentParser::appendBytes not found in text section.");
+              "BlinkParseHTMLManipulator: HTMLDocumentParser::appendBytes xref "
+              "not found in text section");
       return;
     }
 
-    ELOGFMT(
-        INFO,
-        "HTMLDocumentParser::appendBytes function found at {} in text section.",
-        xref->data());
+    ELOGFMT(INFO,
+            "BlinkParseHTMLManipulator: Found HTMLDocumentParser::appendBytes "
+            "function at {} in text section",
+            xref->data());
 
     HTMLParser__AppendBytes =
         xref->find_upwards({0x56, 0x57}).value().as_function();
@@ -99,15 +104,14 @@ void blink_parse_html_manipulator::install() {
   const auto pFunc = (uint8_t *)HTMLParser__AppendBytes->data();
 
   if (pFunc[0] == 0x56 && pFunc[1] == 0x57 && pFunc[2] == 0x53) {
-    ELOGFMT(INFO,
-            "BlinkHtmlParserHook::install() - Using older function signature");
+    ELOGFMT(INFO, "BlinkParseHTMLManipulator: Using older function signature");
     HTMLParser__AppendBytes_Hook->install(+[](void *self, uint8_t *data,
                                               size_t size) {
-      ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Hooked");
+      ELOGFMT(DEBUG, "BlinkParseHTMLManipulator: Hook called with {} bytes",
+              size);
       auto span_data = std::span<char>(reinterpret_cast<char *>(data), size);
       std::vector<std::shared_ptr<std::any>> contexts;
       BlinkHTMLData html_data{.data = span_data, .replacement = {}};
-      ELOGFMT(INFO, "BlinkHtmlParserHook::install() - BeforeParse");
 
       auto res = context::current->process_ipc.call_and_poll<std::string>(
           "on_blink_parse_html_manipulate",
@@ -116,13 +120,14 @@ void blink_parse_html_manipulator::install() {
       if (res.has_value() &&
           res.value() !=
               std::string_view(html_data.data.data(), html_data.data.size())) {
-        ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Replacement found");
+        ELOGFMT(
+            DEBUG,
+            "BlinkParseHTMLManipulator: HTML content modified, new size: {}",
+            res.value().size());
         html_data.replacement =
             std::vector<char>(res.value().begin(), res.value().end());
       }
 
-      ELOGFMT(INFO, "BlinkHtmlParserHook::install() - has replacement: {}",
-              html_data.replacement.has_value());
       auto ret = html_data.replacement.has_value()
                      ? HTMLParser__AppendBytes_Hook->call_trampoline<void *>(
                            self, html_data.replacement->data(),
@@ -132,25 +137,26 @@ void blink_parse_html_manipulator::install() {
       return ret;
     });
   } else {
-    ELOGFMT(INFO,
-            "BlinkHtmlParserHook::install() - Using newer function signature");
+    ELOGFMT(INFO, "BlinkParseHTMLManipulator: Using newer function signature");
     HTMLParser__AppendBytes_Hook->install(+[](void *self, BlinkUtilSpan &data) {
-      ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Hooked");
+      ELOGFMT(DEBUG, "BlinkParseHTMLManipulator: Hook called with {} bytes",
+              data.size);
       auto span_data =
           std::span<char>(reinterpret_cast<char *>(data.data), data.size);
       std::vector<std::shared_ptr<std::any>> contexts;
       BlinkHTMLData html_data{.data = span_data, .replacement = {}};
 
       auto html = std::string(html_data.data.data(), html_data.data.size());
-
       if (auto res = context::current->process_ipc
                          .call<std::string, std::string>(
                              "on_blink_parse_html_manipulate", html)
                          .get();
           res != html) {
-        ELOGFMT(INFO, "BlinkHtmlParserHook::install() - Replacement found");
-        html_data.replacement =
-            std::vector<char>(res.begin(), res.end());
+        ELOGFMT(
+            DEBUG,
+            "BlinkParseHTMLManipulator: HTML content modified, new size: {}",
+            res.size());
+        html_data.replacement = std::vector<char>(res.begin(), res.end());
       }
 
       auto blink_span =
@@ -169,7 +175,11 @@ void blink_parse_html_manipulator::install() {
 
   context::current->process_ipc.add_call_handler<bool>(
       "is_blink_parse_html_manipulator_available", []() { return true; });
+
+  ELOGFMT(INFO,
+          "BlinkParseHTMLManipulator: Installation completed successfully");
 }
+
 bool blink_parse_html_manipulator::is_available() {
   auto result = context::current->process_ipc.call<bool>(
       "is_blink_parse_html_manipulator_available");
@@ -177,30 +187,53 @@ bool blink_parse_html_manipulator::is_available() {
                             std::future_status::ready) {
     return true;
   } else {
+    ELOGFMT(
+        DEBUG,
+        "BlinkParseHTMLManipulator: Availability check failed or timed out");
     return false;
   }
 }
 
 void blink_parse_html_manipulator::register_js() {
-  context::current->process_ipc.add_call_handler<std::string, std::string>(
-      "on_blink_parse_html_manipulate", [](const std::string &_html) {
-        auto html = _html;
-        for (auto &manipulator : blink_parse_html_manipulators) {
-          try {
-            if (auto res = manipulator(html); !res.empty()) {
-              html = res;
-            }
-          } catch (const std::exception &e) {
-            ELOGFMT(ERROR, "Error in blink_parse_html_manipulator: {}",
-                    e.what());
-          } catch (...) {
-            ELOGFMT(ERROR, "Unknown error in blink_parse_html_manipulator");
-          }
-        }
-        return html;
-      });
+  ELOGFMT(INFO, "BlinkParseHTMLManipulator: Registering JavaScript handlers");
 
-  context::current->script->ctx.on_bind.push_back(
-      []() { blink_parse_html_manipulators.clear(); });
+  context::current->process_ipc.add_call_handler<
+      std::string,
+      std::string>("on_blink_parse_html_manipulate", [](const std::string
+                                                            &_html) {
+    auto html = _html;
+    size_t manipulator_count = 0;
+
+    for (auto &manipulator : blink_parse_html_manipulators) {
+      try {
+        if (auto res = manipulator(html); !res.empty()) {
+          html = res;
+        }
+      } catch (const std::exception &e) {
+        ELOGFMT(ERROR,
+                "BlinkParseHTMLManipulator: Exception in manipulator {}: {}",
+                manipulator_count, e.what());
+      } catch (...) {
+        ELOGFMT(
+            ERROR,
+            "BlinkParseHTMLManipulator: Unknown exception in manipulator {}",
+            manipulator_count);
+      }
+      manipulator_count++;
+    }
+
+    if (manipulator_count > 0) {
+      ELOGFMT(INFO, "BlinkParseHTMLManipulator: Processed {} manipulators",
+              manipulator_count);
+    }
+
+    return html;
+  });
+
+  context::current->script->ctx.on_bind.push_back([]() {
+    ELOGFMT(DEBUG,
+            "BlinkParseHTMLManipulator: Clearing manipulators on script bind");
+    blink_parse_html_manipulators.clear();
+  });
 }
 } // namespace chromatic

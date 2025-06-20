@@ -268,6 +268,9 @@ void context::init_context() {
       blink_parse_html_manipulator::register_js();
     }).detach();
   } else if (cmdline.find(L"--type=renderer") != std::wstring::npos) {
+    while(!IsDebuggerPresent()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
     easylog::add_appender([this](std::string_view msg) {
       process_ipc.call<bool, std::string>("log", std::string(msg));
     });

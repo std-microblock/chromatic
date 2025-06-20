@@ -8,5 +8,5 @@ foreach ($process in Get-Process -ErrorAction SilentlyContinue) {
     }
 }
 
-xmake b
+xmake b chromatic
 Start-Process -FilePath $targetPath -WorkingDirectory "C:\Program Files\Tencent\QQNT-dev" -NoNewWindow
