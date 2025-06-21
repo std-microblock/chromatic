@@ -47,7 +47,7 @@ jobs:
       run: |
         Compress-Archive -Path ./build/windows/* -DestinationPath windows-build-pdb.zip
         Remove-Item -Path ./build/windows/x64/releasedbg/*.pdb -Force
-        Remove-Item -Path ./build/windows/x64/releasedbg/ui.lib -Force
+        Remove-Item -Path ./build/windows/x64/releasedbg/*.lib -Force
         Compress-Archive -Path ./build/windows/* -DestinationPath windows-build.zip
 
     - name: Upload Release Assets
