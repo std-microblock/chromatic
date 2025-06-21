@@ -27,13 +27,13 @@ add_requireconfs("**.async_simple", {
     version = "18f3882be354d407af0f0674121dcddaeff36e26"
 })
 
-add_requires("blook", "breeze-js", "reflect-cpp", "chromatic-cpp-ipc", "cpptrace v0.8.3", "gtest")
+add_requires("blook", "breeze-js", "reflect-cpp", "cpptrace v0.8.3", "gtest")
 set_runtimes("MT")
 
 target("chromatic_ipc")
     set_kind("static")
     add_defines("NOMINMAX")
-    add_packages("yalantinglibs", "reflect-cpp", "chromatic-cpp-ipc", {
+    add_packages("yalantinglibs", "reflect-cpp", {
         public = true,
     })
     add_files("ipc/ipc.cc")
@@ -44,7 +44,7 @@ target("chromatic_ipc")
 target("chromatic")
     set_kind("shared")
     add_defines("NOMINMAX")
-    add_packages("blook", "breeze-js", "reflect-cpp", "yalantinglibs", "chromatic-cpp-ipc", "cpptrace")
+    add_packages("blook", "breeze-js", "reflect-cpp", "yalantinglibs", "cpptrace")
     add_syslinks("oleacc", "ole32", "oleaut32", "uuid", "comctl32", "comdlg32", "gdi32", "user32", "shell32", "kernel32", "advapi32", "psapi")
     add_files("src/**/*.cc", "src/*.cc")
     remove_files("src/ipc.cc")

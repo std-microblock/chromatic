@@ -4,7 +4,7 @@ package("breeze-js")
 
     add_urls("https://github.com/breeze-shell/breeze-js.git")
 
-    add_versions("20250621.2", "4a1556efe18e7afb4a13c3b25abe54080577cae7")
+    add_versions("20250621.3", "4a1556efe18e7afb4a13c3b25abe54080577cae7")
     add_deps("yalantinglibs 0c98464dd202aaa6275a8da3297719a436b8a51a", {
         configs = {
             ssl = true
@@ -18,9 +18,7 @@ package("breeze-js")
         io.replace("xmake.lua", [[set_kind("binary")]], [[set_kind("binary")
 set_enabled(false)]], {plain = true})
         io.replace("xmake.lua", [[set_kind("static")]], [[set_kind("static")
--- set_symbols("debug")
--- set_optimize("fastest")
--- add_defines("NDEBUG")
+add_defines("NDEBUG")
 if is_plat("macosx") then
     add_cxxflags("-fexperimental-library")
 end]], {plain = true})

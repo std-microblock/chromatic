@@ -8,8 +8,6 @@
 #include "cpptrace/cpptrace.hpp"
 #include "cpptrace/from_current.hpp"
 
-#include "libipc/ipc.h"
-
 #include "Windows.h"
 #include "blook/blook.h"
 #include <debugapi.h>

@@ -3,7 +3,7 @@
 #include <print>
 #if defined(_MSC_VER)
 #pragma warning(push)
-#pragma warning(disable : 4200) // nonstandard extension used : zero-sized array
+#pragma warning(disable : 4200)
 #endif
 
 #ifndef NOMINMAX
@@ -35,13 +35,9 @@ namespace ipc {
 
 class Exception : public std::runtime_error {
 public:
-  explicit Exception(const std::string &message) : std::runtime_error(message) {
-    // For debugging, consider logging instead of printf.
-    // std::printf("IPC Exception: %s\n", message.c_str());
-  }
-  explicit Exception(const char *message) : std::runtime_error(message) {
-    // std::printf("IPC Exception: %s\n", message);
-  }
+  explicit Exception(const std::string &message)
+      : std::runtime_error(message) {}
+  explicit Exception(const char *message) : std::runtime_error(message) {}
 };
 
 namespace detail {
@@ -52,8 +48,6 @@ inline void throw_windows_error(const std::string &message) {
                        " (Windows Error: " + std::to_string(error_code) + ")");
 }
 
-// SidHolder and get_sa remain unchanged as they correctly set up
-// permissions for inter-process communication.
 class SidHolder {
 public:
   SidHolder() : sid_buffer_() {}
@@ -156,42 +150,35 @@ struct MessageHeader {
 
 struct MessageSlot {
   MessageHeader header;
-  char data[0]; // Flexible array member
+  char data[0];
 };
 
-// **CHANGE**: Represents a single reader's state in shared memory.
 struct ReaderSlot {
-  // PID of the process that has claimed this slot. 0 means it's free.
+
   std::atomic<DWORD> pid{0};
-  // The sequence number of the last message fragment this reader processed.
+
   std::atomic<uint64_t> sequence{0};
 };
 
 struct SharedMemoryHeader {
-  // Lock to serialize writers. MPMC still needs a lock for producers.
+
   std::atomic_flag write_lock = ATOMIC_FLAG_INIT;
   uint32_t capacity;
   uint32_t max_payload_size;
-  uint32_t max_readers; // Store the max readers for validation.
+  uint32_t max_readers;
 
-  // Monotonically increasing index for writers.
   std::atomic<uint64_t> write_index{0};
-  // Monotonically increasing sequence number generator.
-  std::atomic<uint64_t> sequence_generator{0};
 
-  // **CHANGE**: Removed single read_index. Reader slots follow this header.
-  // The actual array of ReaderSlot will be allocated right after this struct.
+  std::atomic<uint64_t> sequence_generator{0};
 };
 
 } // namespace detail
 
-// **CHANGE**: Class is now templated on the max number of concurrent readers.
 template <size_t MaxReaders = 16> class Channel {
 public:
   struct Config {
-    size_t capacity = 128; // Ring buffer capacity in slots
+    size_t capacity = 128;
     size_t max_message_payload_size = 4096;
-    // Backpressure is inherent to the MPMC design, so the bool is removed.
   };
 
   Channel() = default;
@@ -240,23 +227,23 @@ public:
     }
 
     p_header_ = static_cast<detail::SharedMemoryHeader *>(p_shared_mem_);
-    // The buffer of message slots starts after the header and the reader slots
+
     p_buffer_start_ = reinterpret_cast<char *>(p_shared_mem_) + header_size;
 
     if (is_creator) {
-      // Use placement new and explicitly initialize memory
+
       new (p_header_) detail::SharedMemoryHeader();
       p_header_->capacity = static_cast<uint32_t>(config_.capacity);
       p_header_->max_payload_size =
           static_cast<uint32_t>(config_.max_message_payload_size);
       p_header_->max_readers = static_cast<uint32_t>(MaxReaders);
-      // Initialize all reader slots to be free
+
       for (size_t i = 0; i < MaxReaders; ++i) {
         new (get_reader_slot(i)) detail::ReaderSlot();
       }
 
     } else {
-      // Not the creator, validate config against existing SHM
+
       if (p_header_->max_readers != MaxReaders) {
         disconnect();
         throw Exception(
@@ -264,15 +251,13 @@ public:
       }
       if (p_header_->capacity != config_.capacity ||
           p_header_->max_payload_size != config_.max_message_payload_size) {
-        // Or, we can just adopt the creator's config silently.
-        // For now, let's be strict.
+
         disconnect();
         throw Exception("Connection failed: Mismatched capacity or "
                         "max_payload_size configuration.");
       }
     }
 
-    // Create or Open the event used to signal readers
     if (is_creator) {
       h_data_ready_event_ = ::CreateEventW(sa, TRUE, FALSE, event_name.c_str());
       if (h_data_ready_event_ == NULL) {
@@ -288,12 +273,11 @@ public:
       }
     }
 
-    // **CHANGE**: Register this instance as a reader.
     register_reader();
   }
 
   void disconnect() {
-    // **CHANGE**: Deregister this instance as a reader before disconnecting.
+
     if (is_connected()) {
       deregister_reader();
     }
@@ -336,31 +320,24 @@ public:
 
     std::string_view message_view(message);
 
-    // Retry loop for handling back-pressure
     while (true) {
-      // Acquire spinlock for the entire send operation to serialize writers
+
       while (p_header_->write_lock.test_and_set(std::memory_order_acquire)) {
         std::this_thread::yield();
       }
 
-      // We have the lock. Check if there is enough space.
       const uint64_t write_idx =
           p_header_->write_index.load(std::memory_order_relaxed);
 
-      // **CHANGE**: Find the slowest reader to determine available space.
       uint64_t slowest_reader_seq = get_slowest_reader_sequence();
 
-      // A slot is free if the slowest reader has passed it.
-      // The number of used slots is write_idx - slowest_reader_seq.
       if ((write_idx - slowest_reader_seq) + num_fragments > capacity) {
-        // Not enough space. Release lock, wait, and retry the WHOLE operation.
+
         p_header_->write_lock.clear(std::memory_order_release);
-        std::this_thread::sleep_for(
-            std::chrono::milliseconds(1)); // Simple back-off
-        continue;                          // Restart the outer while loop
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        continue;
       }
 
-      // Lock is held AND space is guaranteed. Proceed to write all fragments.
       try {
         const uint64_t seq_gen_at_write_time =
             p_header_->sequence_generator.load(std::memory_order_relaxed);
@@ -382,12 +359,10 @@ public:
           if (chunk_size > 0) {
             memcpy(&slot->data, message_view.data() + offset, chunk_size);
           }
-          // This store makes the message visible to readers.
+
           slot->header.sequence.store(new_sequence, std::memory_order_release);
         }
 
-        // Atomically update the shared header state now that all fragments are
-        // valid.
         p_header_->write_index.fetch_add(num_fragments,
                                          std::memory_order_relaxed);
         p_header_->sequence_generator.fetch_add(num_fragments,
@@ -395,12 +370,12 @@ public:
 
       } catch (...) {
         p_header_->write_lock.clear(std::memory_order_release);
-        throw; // Rethrow exception after releasing the lock
+        throw;
       }
 
       p_header_->write_lock.clear(std::memory_order_release);
-      ::SetEvent(h_data_ready_event_); // Signal all waiting readers
-      return;                          // Success, exit function
+      ::SetEvent(h_data_ready_event_);
+      return;
     }
   }
 
@@ -426,17 +401,14 @@ private:
     bool in_reassembly = false;
 
     while (true) {
-      // Inner loop tries to consume as many messages as possible without
-      // waiting
+
       while (true) {
         uint64_t next_expected_seq = local_read_sequence_ + 1;
         detail::MessageSlot *found_slot = nullptr;
 
-        // Simple "next slot" optimization. Most of the time, the message will
-        // be in the slot immediately following the last one we read.
         uint64_t probable_idx =
             (p_header_->write_index.load(std::memory_order_relaxed) - 1) %
-            p_header_->capacity; // A hint
+            p_header_->capacity;
         probable_idx = (local_read_sequence_) % p_header_->capacity;
 
         detail::MessageSlot *candidate_slot = get_message_slot(probable_idx);
@@ -444,12 +416,11 @@ private:
             next_expected_seq) {
           found_slot = candidate_slot;
         } else {
-          // Scan the buffer if the hint failed. This is robust against overruns
-          // or multiple writers filling the buffer out of index-order.
+
           for (uint32_t i = 0; i < p_header_->capacity; ++i) {
             detail::MessageSlot *current_slot = get_message_slot(i);
-            uint64_t slot_sequence = current_slot->header.sequence.load(
-                std::memory_order_relaxed); // relaxed is fine for scan
+            uint64_t slot_sequence =
+                current_slot->header.sequence.load(std::memory_order_relaxed);
             if (slot_sequence == next_expected_seq) {
               found_slot = current_slot;
               break;
@@ -458,13 +429,13 @@ private:
         }
 
         if (found_slot) {
-          // We found the next piece of data
+
           if (found_slot->header.is_first_fragment) {
             if (in_reassembly)
-              reassembly_buffer.clear(); // Start new message
+              reassembly_buffer.clear();
             in_reassembly = true;
           } else if (!in_reassembly) {
-            local_read_sequence_++; // Skip orphan fragment
+            local_read_sequence_++;
             update_reader_progress();
             continue;
           }
@@ -476,31 +447,28 @@ private:
           if (found_slot->header.is_last_fragment) {
             message = std::move(reassembly_buffer);
             in_reassembly = false;
-            update_reader_progress(); // **CHANGE**: Signal progress
+            update_reader_progress();
             return true;
           }
         } else {
-          // No more sequential data available right now
+
           break;
         }
       }
 
-      // If we end up here, we need to wait for new data.
       ::ResetEvent(h_data_ready_event_);
 
-      // Before waiting, do one last check to avoid a race condition where data
-      // arrives between the last check and ResetEvent.
       if (p_header_->sequence_generator.load(std::memory_order_acquire) >
           local_read_sequence_) {
-        continue; // New data might be available, loop again without waiting.
+        continue;
       }
 
       DWORD wait_result =
           ::WaitForSingleObject(h_data_ready_event_, timeout_ms);
       if (wait_result == WAIT_OBJECT_0) {
-        continue; // Event was signaled, loop to process data
+        continue;
       } else if (wait_result == WAIT_TIMEOUT) {
-        return false; // Timed out, no data
+        return false;
       } else {
         detail::throw_windows_error(
             "WaitForSingleObject failed on ipc::Channel '" + name_ + "'");
@@ -508,7 +476,6 @@ private:
     }
   }
 
-  // Helper functions for memory layout
   static constexpr size_t get_header_size() {
     return sizeof(detail::SharedMemoryHeader) +
            MaxReaders * sizeof(detail::ReaderSlot);
@@ -536,10 +503,10 @@ private:
   static bool is_pid_alive(DWORD pid) {
     HANDLE h_process = ::OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
     if (h_process == NULL) {
-      return false; // Process does not exist or access denied
+      return false;
     }
     ::CloseHandle(h_process);
-    return true; // Process is alive
+    return true;
   }
 
   void register_reader() {
@@ -549,18 +516,18 @@ private:
     for (size_t i = 0; i < MaxReaders; ++i) {
       detail::ReaderSlot *slot = get_reader_slot(i);
       DWORD expected_pid = 0;
-      // Atomically try to claim a free slot (where pid is 0)
+
       if (slot->pid.compare_exchange_strong(expected_pid, current_instance_id_,
                                             std::memory_order_acq_rel)) {
         my_reader_slot_index_ = static_cast<int>(i);
-        // Start reading from this point forward.
+
         local_read_sequence_ = current_global_seq;
         slot->sequence.store(current_global_seq, std::memory_order_release);
         return;
       }
     }
-    // If we get here, no free slots were found
-    disconnect(); // Clean up partially connected state
+
+    disconnect();
     throw Exception("Failed to register reader: Maximum number of concurrent "
                     "readers reached for channel '" +
                     name_ + "'.");
@@ -569,7 +536,7 @@ private:
   void deregister_reader() {
     if (my_reader_slot_index_ >= 0) {
       detail::ReaderSlot *slot = get_reader_slot(my_reader_slot_index_);
-      slot->pid.store(0, std::memory_order_release); // Release the slot
+      slot->pid.store(0, std::memory_order_release);
       my_reader_slot_index_ = -1;
     }
   }
@@ -588,14 +555,14 @@ private:
   }
 
   uint64_t get_slowest_reader_sequence() const {
-    uint64_t slowest_seq = p_header_->write_index.load(
-        std::memory_order_relaxed); // Default if no readers
+    uint64_t slowest_seq =
+        p_header_->write_index.load(std::memory_order_relaxed);
     bool reader_found = false;
 
     for (size_t i = 0; i < MaxReaders; ++i) {
       const detail::ReaderSlot *slot = get_reader_slot(i);
       auto pid = slot->pid.load(std::memory_order_acquire);
-      if (pid != 0 && pid != current_instance_id_) { // Check if slot is active
+      if (pid != 0 && pid != current_instance_id_) {
         uint64_t reader_seq = slot->sequence.load(std::memory_order_acquire);
         if (!reader_found) {
           slowest_seq = reader_seq;
@@ -614,7 +581,7 @@ private:
       detail::ReaderSlot *slot = get_reader_slot(i);
       DWORD pid = slot->pid.load(std::memory_order_acquire);
       if (pid != 0 && !is_pid_alive(pid)) {
-        // If the reader's PID is dead, reset the slot
+
         slot->pid.store(0, std::memory_order_release);
         slot->sequence.store(0, std::memory_order_release);
       }
@@ -631,9 +598,8 @@ private:
   detail::SharedMemoryHeader *p_header_ = nullptr;
   char *p_buffer_start_ = nullptr;
 
-  // Local state for this reader instance
   uint64_t local_read_sequence_ = 0;
-  int my_reader_slot_index_ = -1; // -1 means not registered
+  int my_reader_slot_index_ = -1;
 };
 
 } // namespace ipc
