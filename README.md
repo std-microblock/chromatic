@@ -11,6 +11,14 @@
 >
 > 点击以查看 [BetterNCM 相关代码存档](https://github.com/std-microblock/chromatic/tree/v2) 或 [最后一版 BetterNCM Release](https://github.com/std-microblock/chromatic/releases/tag/1.3.4)
 
+> [!WARNING]
+> This project is still in active development. File a bug report if you meet
+> any!\
+> 此项目仍在开发阶段，如果遇到问题请发送 Issue
+>
+> Both English and Chinese issues are accepted.
+> Issue 中使用中文或英文均可
+
 ## 文档/使用方法
 
 待完善
