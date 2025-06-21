@@ -11,6 +11,10 @@
 >
 > 点击以查看 [BetterNCM 相关代码存档](https://github.com/std-microblock/chromatic/tree/v2) 或 [最后一版 BetterNCM Release](https://github.com/std-microblock/chromatic/releases/tag/1.3.4)
 
+## 文档/使用方法
+
+待完善
+
 ## Showcase
 
 ```javascript
