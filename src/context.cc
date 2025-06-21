@@ -82,7 +82,7 @@ void context::detect_process_type() {
       std::shared_ptr<blook::Module> chrome_mod;
       if (auto mod = proc->module("chrome.dll")) {
         chrome_mod = mod.value();
-      } else if (auto mod = proc->module("chromium.dll")) {
+      } else if (auto mod = proc->module("edge.dll")) {
         chrome_mod = mod.value();
       } else if (auto mod = proc->module("libcef.dll")) {
         chrome_mod = mod.value();

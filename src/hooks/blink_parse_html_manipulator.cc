@@ -33,8 +33,6 @@ struct BlinkUtilSpan {
 void blink_parse_html_manipulator::install() {
   if (context::current->type.chrome_type != context::process_type::renderer ||
       !context::current->type.chrome_module) {
-    ELOGFMT(WARN, "BlinkParseHTMLManipulator: Not in renderer process or "
-                  "Chrome module not found");
     return;
   }
 
