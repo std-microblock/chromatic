@@ -1,5 +1,4 @@
 #include "ipc.h"
-#include "libipc/ipc.h"
 #include <chrono>
 #include <gtest/gtest.h>
 #include <print>
@@ -9,8 +8,8 @@ using namespace chromatic;
 
 TEST(IPCTest, BasicMessageSendReceive) {
   breeze_ipc ipc1, ipc2;
-  ipc1.connect("test_channel");
-  ipc2.connect("test_channel");
+  ipc1.connect("chromatic://process/1");
+  ipc2.connect("chromatic://process/1");
 
   bool received = false;
   auto remover = ipc2.add_listener(
@@ -25,8 +24,8 @@ TEST(IPCTest, BasicMessageSendReceive) {
 
 TEST(IPCTest, RPCCall) {
   breeze_ipc server, client;
-  server.connect("rpc_channel");
-  client.connect("rpc_channel");
+  server.connect("chromatic://process/");
+  client.connect("chromatic://process/");
 
   auto remover =
       server.add_call_handler<int, int>("add_one", [](int x) { return x + 1; });
@@ -38,8 +37,8 @@ TEST(IPCTest, RPCCall) {
 
 TEST(IPCTest, StringReturnRPC) {
   breeze_ipc server, client;
-  server.connect("string_rpc");
-  client.connect("string_rpc");
+  server.connect("chromatic://process/");
+  client.connect("chromatic://process/");
 
   auto remover = server.add_call_handler<std::string, std::string>(
       "echo", [](const std::string &s) { return s; });
@@ -51,8 +50,8 @@ TEST(IPCTest, StringReturnRPC) {
 
 TEST(IPCTest, PairReturnRPC) {
   breeze_ipc server, client;
-  server.connect("pair_rpc");
-  client.connect("pair_rpc");
+  server.connect("chromatic://process/");
+  client.connect("chromatic://process/");
 
   auto remover = server.add_call_handler<std::pair<int, std::string>, int>(
       "make_pair", [](int x) { return std::make_pair(x, std::to_string(x)); });
@@ -66,8 +65,8 @@ TEST(IPCTest, PairReturnRPC) {
 
 TEST(IPCTest, StringPairRPC) {
   breeze_ipc server, client;
-  server.connect("string_pair_rpc");
-  client.connect("string_pair_rpc");
+  server.connect("chromatic://process/");
+  client.connect("chromatic://process/");
 
   auto remover = server.add_call_handler<std::pair<std::string, std::string>,
                                          std::pair<std::string, std::string>>(
@@ -91,8 +90,8 @@ struct blink_parse_manipulate_context {
 
 TEST(IPCTest, BlinkContextRPC) {
   breeze_ipc server, client;
-  server.connect("blink_rpc");
-  client.connect("blink_rpc");
+  server.connect("chromatic://process/");
+  client.connect("chromatic://process/");
 
   auto remover = server.add_call_handler<blink_parse_manipulate_context,
                                          blink_parse_manipulate_context>(
@@ -128,6 +127,45 @@ TEST(IPCTest, Serialization) {
   EXPECT_EQ(deserialized->c, vec);
 }
 
+TEST(IPCTest, ALotOfPackets) {
+  breeze_ipc server, client;
+  server.connect("chromatic://process/");
+  client.connect("chromatic://process/");
+
+  int count = 1000;
+  int received = 0;
+
+  auto remover = server.add_listener(
+      "test_msg", [&](const breeze_ipc::packet &pkt) { received++; });
+
+  for (int i = 0; i < count; ++i) {
+    client.send("test_msg", test_serializable_struct{i, i * 1.1f, {'a', 'b'}});
+  }
+
+  std::this_thread::sleep_for(
+      std::chrono::seconds(1)); // Give time for IPC to process
+  EXPECT_EQ(received, count);
+}
+
+TEST(IPCTest, LargePacket) {
+  breeze_ipc server, client;
+  server.connect("chromatic://process/");
+  client.connect("chromatic://process/");
+
+  // ~1MB of data
+  std::string large_data(1024 * 1024, 'x');
+
+  auto remover = server.add_call_handler<std::string, std::string>(
+      "echo_large", [](const std::string &data) { 
+        std::println("Received large data of size: {}", data.size());
+        return data;
+       });
+
+  auto future = client.call<std::string, std::string>("echo_large", large_data);
+
+  EXPECT_EQ(future.get(), large_data);
+}
+
 int main(int argc, char **argv) {
 
   // auto channel = breeze_ipc{};
@@ -145,11 +183,8 @@ int main(int argc, char **argv) {
 
   std::string arg(argc > 1 ? argv[1] : "");
   if (arg == "inspect") {
-    ipc::channel channel;
-    if (!channel.connect("chromatic://process/")) {
-      std::cerr << "Failed to connect to IPC channel." << std::endl;
-      return 1;
-    }
+    ipc::Channel channel;
+    channel.connect("chromatic://process/");
 
     std::cout << "Connected to IPC channel." << std::endl;
 
@@ -162,7 +197,8 @@ int main(int argc, char **argv) {
     });
 
     while (true) {
-      auto data = channel.recv(100);
+      std::string data;
+      channel.try_receive(data);
       if (!data.empty()) {
         std::cout << "\033[47;30m["
                   << std::chrono::system_clock::now().time_since_epoch().count()
@@ -187,7 +223,16 @@ int main(int argc, char **argv) {
       }
     }
   } else {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    try {
+      testing::InitGoogleTest(&argc, argv);
+      return RUN_ALL_TESTS();
+    } catch (const std::exception &e) {
+      std::cerr << "Exception during test initialization: " << e.what()
+                << std::endl;
+      return 1;
+    } catch (...) {
+      std::cerr << "Unknown exception during test initialization." << std::endl;
+      return 1;
+    }
   }
 }

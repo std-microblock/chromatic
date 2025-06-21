@@ -268,9 +268,6 @@ void context::init_context() {
       blink_parse_html_manipulator::register_js();
     }).detach();
   } else if (cmdline.find(L"--type=renderer") != std::wstring::npos) {
-    while(!IsDebuggerPresent()) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
     easylog::add_appender([this](std::string_view msg) {
       process_ipc.call<bool, std::string>("log", std::string(msg));
     });
@@ -280,17 +277,16 @@ void context::init_context() {
       ELOGFMT(INFO, "Received config_reload");
       config::current = std::make_unique<config>(cfg);
     });
-
-    auto p = process_ipc.call<config>("get_config");
-    for (int i = 0; i < 50; i++)
-      if (p.valid() && p.wait_for(std::chrono::milliseconds(0)) ==
-                           std::future_status::timeout) {
-        process_ipc.poll();
-      }
-
-    if (p.valid() &&
-        p.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-      config::current = std::make_unique<config>(p.get());
+    process_ipc.call<config>("get_config");
+    process_ipc.send(breeze_ipc::packet {
+      .seq = 1,
+      .return_for_call = 0,
+      .name = "call_get_config",
+      .data = "true"
+    });
+    auto p = process_ipc.call_and_poll<config>("get_config");
+    if (p) {
+      config::current = std::make_unique<config>(p.value());
     } else {
       ELOGFMT(WARN, "Failed to get config from main process, using default.");
       config::current = std::make_unique<config>();

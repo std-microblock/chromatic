@@ -2,10 +2,11 @@
 
 #include "blook/module.h"
 #include "config.h"
-#include "ipc.h"
 #include "script/script.h"
 #include <memory>
 #include <string>
+
+#include "ipc.h"
 
 namespace chromatic {
 struct context {

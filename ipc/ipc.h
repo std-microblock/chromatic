@@ -1,16 +1,21 @@
 #pragma once
-#include "libipc/ipc.h"
+#include "./shared_memory_ipc.h"
 #include <atomic>
+#include <condition_variable>
+#include <deque>
 #include <expected>
 #include <functional>
 #include <future>
 #include <iostream>
+#include <mutex>
+#include <print>
 #include <sstream>
 #include <string>
 #include <unordered_map>
 
 #include "rfl.hpp"
 #include "rfl/json.hpp"
+#include "ylt/easylog.hpp"
 #include "ylt/struct_pack.hpp"
 
 #define WIN32_LEAN_AND_MEAN
@@ -20,6 +25,7 @@
 namespace chromatic {
 constexpr static bool use_struct_pack = false;
 constexpr static bool print_packages = false;
+constexpr static size_t MAX_PACKET_SIZE = 1024;
 
 auto serialize = [](const auto &data) {
   if constexpr (use_struct_pack) {
@@ -40,7 +46,6 @@ template <typename T> auto deserialize(const std::string &data) {
 template <typename T>
 concept StructPackSerializable = requires(T t) {
   { serialize(t) } -> std::same_as<std::string>;
-
   deserialize<T>(std::declval<std::string>());
 };
 
@@ -59,14 +64,69 @@ struct breeze_ipc {
     size_t return_for_call = 0;
     std::string name;
     std::string data;
+    DWORD from_pid = 0;        // 发送方进程ID
+    DWORD to_pid = 0;          // 接收方进程ID
+    bool is_fragment = false;  // 是否是分包
+    size_t fragment_id = 0;    // 分包ID
+    size_t fragment_index = 0; // 分包索引
+    size_t fragment_total = 0; // 总分包数
+  };
+
+  // 分包重组缓存
+  struct fragment_cache {
+    std::vector<std::string> fragments;
+    std::chrono::steady_clock::time_point created_time;
+    packet base_packet;
   };
 
   void connect(std::string_view name);
 
   inline size_t inc_seq() { return seq++; }
+  inline size_t next_fragment_id() { return next_fragment_id_++; }
 
-  void send(packet &&pkt) {
-    if (auto data = serialize(pkt); !data.empty()) {
+  // 发送包（可选择目标PID）
+  void send(packet &&pkt, DWORD target_pid = 0) {
+    pkt.to_pid = target_pid;
+
+    pkt.from_pid = current_pid_;
+
+    auto serialized = serialize(pkt);
+
+    // 分包处理
+    if (serialized.size() > MAX_PACKET_SIZE) {
+      send_fragmented(pkt, serialized);
+      return;
+    }
+
+    send_impl(serialized);
+  }
+
+  // 实现分包发送
+  void send_fragmented(const packet &base_pkt, const std::string &full_data) {
+    const size_t fragment_id = next_fragment_id();
+    const size_t total_fragments =
+        (full_data.size() + MAX_PACKET_SIZE - 1) / MAX_PACKET_SIZE;
+
+    for (size_t i = 0; i < total_fragments; ++i) {
+      const size_t start = i * MAX_PACKET_SIZE;
+      const size_t end = std::min(start + MAX_PACKET_SIZE, full_data.size());
+
+      packet fragment = base_pkt;
+      fragment.is_fragment = true;
+      fragment.fragment_id = fragment_id;
+      fragment.fragment_index = i;
+      fragment.fragment_total = total_fragments;
+      fragment.data = full_data.substr(start, end - start);
+
+      auto serialized_fragment = serialize(fragment);
+      send_impl(serialized_fragment);
+    }
+  }
+
+  // 实际发送实现
+  void send_impl(const std::string &data) {
+
+    if (!data.empty()) {
       if constexpr (print_packages) {
         if constexpr (use_struct_pack) {
           for (size_t i = 0; i < data.size(); ++i) {
@@ -85,15 +145,27 @@ struct breeze_ipc {
                           static_cast<DWORD>(data.size()), nullptr, nullptr);
         }
       }
-
-      channel.send(data.data(), data.size());
+      channel.send(data);
     }
   }
 
   bool poll();
 
+  // 发送给特定PID
   template <StructPackSerializable T>
-  void send(const std::string &name, const T &data) {
+  void send(const std::string &name, const T &data, DWORD target_pid = 0) {
+    send(
+        packet{
+            .seq = inc_seq(),
+            .return_for_call = 0,
+            .name = name,
+            .data = serialize(data),
+        },
+        target_pid);
+  }
+
+  template <StructPackSerializable T>
+  void broadcast(const std::string &name, const T &data) {
     send(packet{
         .seq = inc_seq(),
         .return_for_call = 0,
@@ -153,12 +225,11 @@ struct breeze_ipc {
         throw std::runtime_error("Failed to deserialize call data for " + name);
       }
       auto result = handler(data.value());
-      send(packet{
-          .seq = inc_seq(),
-          .return_for_call = pkt.seq,
-          .name = "call_result_" + name,
-          .data = serialize(result),
-      });
+      send(packet{.seq = inc_seq(),
+                  .return_for_call = pkt.seq,
+                  .name = "call_result_" + name,
+                  .data = serialize(result),
+                  .to_pid = pkt.from_pid});
     });
   }
 
@@ -170,7 +241,8 @@ struct breeze_ipc {
   }
 
   template <StructPackSerializable RetVal, StructPackSerializable R>
-  std::future<RetVal> call(const std::string &name, const R &data) {
+  std::future<RetVal> call(const std::string &name, const R &data,
+                           DWORD target_pid = 0) {
     auto seq = inc_seq();
     auto promise = std::make_shared<std::promise<RetVal>>();
     call_handlers[seq] = [promise](const packet &pkt) {
@@ -188,21 +260,22 @@ struct breeze_ipc {
         .return_for_call = 0,
         .name = "call_" + name,
         .data = serialize(data),
+        .to_pid = target_pid // 定向发送
     });
-
 
     return promise->get_future();
   }
 
-  template <StructPackSerializable RetVal> auto call(const std::string &name) {
-    return call<RetVal, bool>(name, true);
+  template <StructPackSerializable RetVal>
+  std::future<RetVal> call(const std::string &name, DWORD target_pid = 0) {
+    return call<RetVal, bool>(name, true, target_pid);
   }
 
   template <StructPackSerializable RetVal, StructPackSerializable R>
   std::optional<RetVal>
-  call_and_poll(const std::string &name, const R &data,
+  call_and_poll(const std::string &name, const R &data, DWORD target_pid = 0,
                 std::chrono::milliseconds timeout = std::chrono::seconds(5)) {
-    auto future = call<RetVal, R>(name, data);
+    auto future = call<RetVal, R>(name, data, target_pid);
     auto start = std::chrono::steady_clock::now();
 
     while (std::chrono::steady_clock::now() - start < timeout) {
@@ -217,23 +290,34 @@ struct breeze_ipc {
 
   template <StructPackSerializable RetVal>
   std::optional<RetVal>
-  call_and_poll(const std::string &name,
+  call_and_poll(const std::string &name, DWORD target_pid = 0,
                 std::chrono::milliseconds timeout = std::chrono::seconds(5)) {
-    return call_and_poll<RetVal, bool>(name, true, timeout);
+    return call_and_poll<RetVal, bool>(name, true, target_pid, timeout);
   }
 
   ~breeze_ipc();
 
 private:
+  void process_packet(packet &&pkt);
+  void process_fragment(const packet &frag);
+  void reassemble_and_process(size_t fragment_id);
+
   std::unordered_map<std::string,
                      std::list<std::function<void(const packet &)>>>
       handlers;
   std::unordered_map<size_t, std::function<void(const packet &)>> call_handlers;
-  ::ipc::channel channel;
+  ::ipc::Channel<> channel;
   std::atomic_size_t seq =
       1 + std::chrono::system_clock::now().time_since_epoch().count() / 1000 %
               1000000;
+  std::atomic_size_t next_fragment_id_ = 1;
   std::atomic_bool exit_signal = false;
   std::thread ipc_thread;
+
+  DWORD current_pid_ = ::GetCurrentProcessId();
+
+  // 分包重组相关
+  std::mutex fragment_mutex_;
+  std::unordered_map<size_t, fragment_cache> fragment_cache_;
 };
 } // namespace chromatic
