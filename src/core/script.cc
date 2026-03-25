@@ -1,5 +1,14 @@
 #include "script.h"
 #include "bindings/generated_bindings/binding_qjs.h"
+#include "fmt/base.h"
+
+extern "C" {
+extern const uint8_t _binary_index_js_start[];
+extern const uint8_t _binary_index_js_end[];
+}
+
+std::string index_js = {(const char *)_binary_index_js_start,
+                        (const char *)_binary_index_js_end};
 
 namespace chromatic::script {
 void runtime::cleanup() {}
@@ -8,6 +17,10 @@ void runtime::reset() {
   context.on_bind.push_back(
       [this]() { bindAll(context.js->addModule("chromatic")); });
   context.reset_runtime();
+  if (auto res = context.eval_string(index_js, "<index>"); !res) {
+    fmt::print("Failed to eval index.js: {}\n", res.error());
+    return;
+  }
 }
 std::expected<qjs::Value, std::string>
 runtime::eval_script(const std::string &script, std::string_view filename) {
