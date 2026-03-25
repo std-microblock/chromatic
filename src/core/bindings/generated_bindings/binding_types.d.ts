@@ -9,141 +9,134 @@ export class console {
      * @param message: string
      * @returns void
      */
-    log(message: string): void
+    static log(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    error(message: string): void
+    static error(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    warn(message: string): void
+    static warn(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    info(message: string): void
+    static info(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    debug(message: string): void
+    static debug(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    trace(message: string): void
+    static trace(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    group(message: string): void
-	groupEnd(): void
+    static group(message: string): void
+	static groupEnd(): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    table(message: string): void
+    static table(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    time(message: string): void
+    static time(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    timeEnd(message: string): void
+    static timeEnd(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    count(message: string): void
+    static count(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    countReset(message: string): void
-	/**
-     * 
-     * @param condition: boolean
-     * @param message: string
-     * @returns void
-     */
-    assert(condition: boolean, message: string): void
+    static countReset(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    dir(message: string): void
+    static dir(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    dirxml(message: string): void
+    static dirxml(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    profile(message: string): void
+    static profile(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    profileEnd(message: string): void
+    static profileEnd(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    timeStamp(message: string): void
+    static timeStamp(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    timeline(message: string): void
+    static timeline(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    timelineEnd(message: string): void
+    static timelineEnd(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    timeLog(message: string): void
+    static timeLog(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    timeLine(message: string): void
+    static timeLine(message: string): void
 	/**
      * 
      * @param message: string
      * @returns void
      */
-    timeLineEnd(message: string): void
+    static timeLineEnd(message: string): void
 }
 }
 

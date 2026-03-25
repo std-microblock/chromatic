@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "module": "nodenext",
+    "target": "esnext",
+    "types": ["../bindings/generated_bindings/binding_types.d.ts"],
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "strict": false,
+  }
+}
