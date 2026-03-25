@@ -10,6 +10,8 @@ add_requires("capstone", "fmt")
 target("chromatic-core")
     set_kind("static")
     add_files("src/core/**.cc")
+    add_rules("utils.bin2obj", {extensions = ".js"})
+    add_files("src/core/typescript/dist/index.js")
     add_packages("breeze-js-runtime", "fmt", "capstone")
     add_headerfiles("src/core/**.h", "src/core/**.hpp")
     add_includedirs("src", {

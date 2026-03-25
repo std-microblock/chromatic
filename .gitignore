@@ -1,3 +1,5 @@
 .cache
 .xmake
 build
+node_modules
+dist
