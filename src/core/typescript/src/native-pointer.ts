@@ -3,12 +3,21 @@ import type { NativePointerValue } from './types';
 
 /**
  * NativePointer — represents a native memory address with full 64-bit precision.
- * Uses BigInt internally to avoid JS number precision loss above 2^53.
- * Provides Frida-compatible API for pointer arithmetic and memory access.
+ *
+ * Uses `BigInt` internally to avoid JavaScript number precision loss above 2^53.
+ * Provides a Frida-compatible API for pointer arithmetic, comparison, and
+ * direct memory read/write operations.
  */
 export class NativePointer {
   private _addr: bigint;
 
+  /**
+   * Create a new NativePointer.
+   *
+   * @param value - Initial address. Accepts another `NativePointer`, a hex
+   *   string (with or without `0x` prefix), a `number`, or a `bigint`.
+   *   Defaults to `0` (NULL).
+   */
   constructor(value: NativePointerValue | bigint | string | number = 0) {
     if (value instanceof NativePointer) {
       this._addr = value._addr;
@@ -29,7 +38,10 @@ export class NativePointer {
 
   // ---- Conversion ----
 
-  /** Hex string with 0x prefix */
+  /**
+   * Return the address as a hex string with `0x` prefix.
+   * @param radix - Output radix (default 16). Only `16` and `undefined` produce the `0x` prefix.
+   */
   toString(radix?: number): string {
     if (radix === 16 || radix === undefined) {
       return '0x' + this._addr.toString(16);
@@ -37,18 +49,22 @@ export class NativePointer {
     return this._addr.toString(radix);
   }
 
+  /** JSON representation (hex string). */
   toJSON(): string {
     return this.toString();
   }
 
+  /** Truncate to a signed 32-bit integer. */
   toInt32(): number {
     return Number(BigInt.asIntN(32, this._addr));
   }
 
+  /** Truncate to an unsigned 32-bit integer. */
   toUInt32(): number {
     return Number(BigInt.asUintN(32, this._addr));
   }
 
+  /** Convert to a JavaScript number (may lose precision for large addresses). */
   toNumber(): number {
     return Number(this._addr);
   }
@@ -60,14 +76,23 @@ export class NativePointer {
 
   // ---- Comparison ----
 
+  /** Returns `true` if the pointer is NULL (0). */
   isNull(): boolean {
     return this._addr === 0n;
   }
 
+  /**
+   * Test equality with another pointer value.
+   * @param other - Value to compare against.
+   */
   equals(other: NativePointerValue): boolean {
     return this._addr === new NativePointer(other)._addr;
   }
 
+  /**
+   * Compare with another pointer. Returns `-1`, `0`, or `1`.
+   * @param other - Value to compare against.
+   */
   compare(other: NativePointerValue): number {
     const o = new NativePointer(other)._addr;
     if (this._addr < o) return -1;
@@ -77,34 +102,42 @@ export class NativePointer {
 
   // ---- Arithmetic ----
 
+  /** Add an offset to this pointer and return a new pointer. */
   add(rhs: NativePointerValue | number | bigint): NativePointer {
     return new NativePointer(this._addr + BigInt(typeof rhs === 'number' ? rhs : new NativePointer(rhs as any)._addr));
   }
 
+  /** Subtract an offset from this pointer and return a new pointer. */
   sub(rhs: NativePointerValue | number | bigint): NativePointer {
     return new NativePointer(this._addr - BigInt(typeof rhs === 'number' ? rhs : new NativePointer(rhs as any)._addr));
   }
 
+  /** Bitwise AND. */
   and(rhs: NativePointerValue | number | bigint): NativePointer {
     return new NativePointer(this._addr & new NativePointer(rhs as any)._addr);
   }
 
+  /** Bitwise OR. */
   or(rhs: NativePointerValue | number | bigint): NativePointer {
     return new NativePointer(this._addr | new NativePointer(rhs as any)._addr);
   }
 
+  /** Bitwise XOR. */
   xor(rhs: NativePointerValue | number | bigint): NativePointer {
     return new NativePointer(this._addr ^ new NativePointer(rhs as any)._addr);
   }
 
+  /** Bitwise right shift by `n` bits. */
   shr(n: number): NativePointer {
     return new NativePointer(this._addr >> BigInt(n));
   }
 
+  /** Bitwise left shift by `n` bits. */
   shl(n: number): NativePointer {
     return new NativePointer(this._addr << BigInt(n));
   }
 
+  /** Bitwise NOT, masked to the native pointer size. */
   not(): NativePointer {
     // Mask to pointer size
     const ptrSize = NativeProcess.getPointerSize();
@@ -114,27 +147,32 @@ export class NativePointer {
 
   // ---- Memory Read ----
 
+  /** Read an unsigned 8-bit integer at this address. */
   readU8(): number {
     const hex = NativeMemory.readMemory(this._hex, 1);
     return parseInt(hex, 16);
   }
 
+  /** Read a signed 8-bit integer at this address. */
   readS8(): number {
     const v = this.readU8();
     return v > 127 ? v - 256 : v;
   }
 
+  /** Read an unsigned 16-bit integer (little-endian) at this address. */
   readU16(): number {
     const hex = NativeMemory.readMemory(this._hex, 2);
     // Little-endian: reverse byte pairs
     return parseInt(hex.slice(2, 4) + hex.slice(0, 2), 16);
   }
 
+  /** Read a signed 16-bit integer (little-endian) at this address. */
   readS16(): number {
     const v = this.readU16();
     return v > 32767 ? v - 65536 : v;
   }
 
+  /** Read an unsigned 32-bit integer (little-endian) at this address. */
   readU32(): number {
     const hex = NativeMemory.readMemory(this._hex, 4);
     const b = hex.match(/.{2}/g)!;

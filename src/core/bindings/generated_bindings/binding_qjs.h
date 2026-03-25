@@ -54,6 +54,37 @@ template<> struct js_bind<chromatic::js::console> {
     }
 };
 
+template <> struct qjs::js_traits<chromatic::js::ScanMatch> {
+    static chromatic::js::ScanMatch unwrap(JSContext *ctx, JSValueConst v) {
+        chromatic::js::ScanMatch obj;
+
+        obj.address = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
+
+        obj.size = js_traits<int>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "size"));
+
+        return obj;
+    }
+
+    static JSValue wrap(JSContext *ctx, const chromatic::js::ScanMatch &val) noexcept {
+        JSValue obj = JS_NewObject(ctx);
+
+        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::string>::wrap(ctx, val.address));
+
+        JS_SetPropertyStr(ctx, obj, "size", js_traits<int>::wrap(ctx, val.size));
+
+        return obj;
+    }
+};
+template<> struct js_bind<chromatic::js::ScanMatch> {
+    static void bind(qjs::Context::Module &mod) {
+        mod.class_<chromatic::js::ScanMatch>("ScanMatch")
+            .constructor<>()
+                .fun<&chromatic::js::ScanMatch::address>("address")
+                .fun<&chromatic::js::ScanMatch::size>("size")
+            ;
+    }
+};
+
 template <> struct qjs::js_traits<chromatic::js::NativeMemory> {
     static chromatic::js::NativeMemory unwrap(JSContext *ctx, JSValueConst v) {
         chromatic::js::NativeMemory obj;
@@ -81,6 +112,9 @@ template<> struct js_bind<chromatic::js::NativeMemory> {
                 .static_fun<&chromatic::js::NativeMemory::flushIcache>("flushIcache")
                 .static_fun<&chromatic::js::NativeMemory::copyMemory>("copyMemory")
                 .static_fun<&chromatic::js::NativeMemory::scanMemory>("scanMemory")
+                .static_fun<&chromatic::js::NativeMemory::scanModule>("scanModule")
+                .static_fun<&chromatic::js::NativeMemory::scanMemoryAsync>("scanMemoryAsync")
+                .static_fun<&chromatic::js::NativeMemory::scanModuleAsync>("scanModuleAsync")
             ;
     }
 };
@@ -348,6 +382,42 @@ template<> struct js_bind<chromatic::js::InstructionAnalysis> {
     }
 };
 
+template <> struct qjs::js_traits<chromatic::js::XrefResult> {
+    static chromatic::js::XrefResult unwrap(JSContext *ctx, JSValueConst v) {
+        chromatic::js::XrefResult obj;
+
+        obj.address = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
+
+        obj.type = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "type"));
+
+        obj.size = js_traits<int>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "size"));
+
+        return obj;
+    }
+
+    static JSValue wrap(JSContext *ctx, const chromatic::js::XrefResult &val) noexcept {
+        JSValue obj = JS_NewObject(ctx);
+
+        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::string>::wrap(ctx, val.address));
+
+        JS_SetPropertyStr(ctx, obj, "type", js_traits<std::string>::wrap(ctx, val.type));
+
+        JS_SetPropertyStr(ctx, obj, "size", js_traits<int>::wrap(ctx, val.size));
+
+        return obj;
+    }
+};
+template<> struct js_bind<chromatic::js::XrefResult> {
+    static void bind(qjs::Context::Module &mod) {
+        mod.class_<chromatic::js::XrefResult>("XrefResult")
+            .constructor<>()
+                .fun<&chromatic::js::XrefResult::address>("address")
+                .fun<&chromatic::js::XrefResult::type>("type")
+                .fun<&chromatic::js::XrefResult::size>("size")
+            ;
+    }
+};
+
 template <> struct qjs::js_traits<chromatic::js::NativeDisassembler> {
     static chromatic::js::NativeDisassembler unwrap(JSContext *ctx, JSValueConst v) {
         chromatic::js::NativeDisassembler obj;
@@ -368,6 +438,12 @@ template<> struct js_bind<chromatic::js::NativeDisassembler> {
                 .static_fun<&chromatic::js::NativeDisassembler::disassembleOne>("disassembleOne")
                 .static_fun<&chromatic::js::NativeDisassembler::disassemble>("disassemble")
                 .static_fun<&chromatic::js::NativeDisassembler::analyzeInstruction>("analyzeInstruction")
+                .static_fun<&chromatic::js::NativeDisassembler::findXrefs>("findXrefs")
+                .static_fun<&chromatic::js::NativeDisassembler::findXrefsInModule>("findXrefsInModule")
+                .static_fun<&chromatic::js::NativeDisassembler::findXrefsAsync>("findXrefsAsync")
+                .static_fun<&chromatic::js::NativeDisassembler::findXrefsInModuleAsync>("findXrefsInModuleAsync")
+                .static_fun<&chromatic::js::NativeDisassembler::filterInstructions>("filterInstructions")
+                .static_fun<&chromatic::js::NativeDisassembler::filterInstructionsAsync>("filterInstructionsAsync")
             ;
     }
 };
@@ -426,6 +502,8 @@ inline void bindAll(qjs::Context::Module &mod) {
 
     js_bind<chromatic::js::console>::bind(mod);
 
+    js_bind<chromatic::js::ScanMatch>::bind(mod);
+
     js_bind<chromatic::js::NativeMemory>::bind(mod);
 
     js_bind<chromatic::js::ModuleInfo>::bind(mod);
@@ -439,6 +517,8 @@ inline void bindAll(qjs::Context::Module &mod) {
     js_bind<chromatic::js::InstructionInfo>::bind(mod);
 
     js_bind<chromatic::js::InstructionAnalysis>::bind(mod);
+
+    js_bind<chromatic::js::XrefResult>::bind(mod);
 
     js_bind<chromatic::js::NativeDisassembler>::bind(mod);
 

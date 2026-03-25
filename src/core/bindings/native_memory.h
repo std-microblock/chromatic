@@ -1,7 +1,21 @@
 #pragma once
+#include <functional>
 #include <string>
+#include <vector>
+
+namespace async_simple::coro {
+template <typename T>
+class Lazy;
+}
 
 namespace chromatic::js {
+
+/// Result of a pattern scan match.
+struct ScanMatch {
+  std::string address; // hex
+  int size;
+};
+
 struct NativeMemory {
   /// Read `size` bytes from `address` (hex string), return hex-encoded data
   static std::string readMemory(const std::string &address, int size);
@@ -35,9 +49,24 @@ struct NativeMemory {
   static void copyMemory(const std::string &dst, const std::string &src,
                          int size);
 
-  /// Scan memory region for pattern (e.g. "48 8b ?? 00").
-  /// Returns JSON array of matching addresses.
-  static std::string scanMemory(const std::string &address, int size,
-                                const std::string &pattern);
+  /// Scan memory region for pattern (e.g. "48 8b ?? 00") using
+  /// Boyer-Moore-Horspool with wildcard support.
+  /// Returns vector of ScanMatch with address + pattern size.
+  static std::vector<ScanMatch> scanMemory(const std::string &address, int size,
+                                           const std::string &pattern);
+
+  /// Scan within a named module for pattern.
+  /// Internally looks up module base+size, then delegates to scanMemory.
+  static std::vector<ScanMatch> scanModule(const std::string &moduleName,
+                                           const std::string &pattern);
+
+  /// Async variant of scanMemory — returns Lazy<T> (→ JS Promise).
+  static async_simple::coro::Lazy<std::vector<ScanMatch>>
+  scanMemoryAsync(const std::string &address, int size,
+                  const std::string &pattern);
+
+  /// Async variant of scanModule — returns Lazy<T> (→ JS Promise).
+  static async_simple::coro::Lazy<std::vector<ScanMatch>>
+  scanModuleAsync(const std::string &moduleName, const std::string &pattern);
 };
 } // namespace chromatic::js

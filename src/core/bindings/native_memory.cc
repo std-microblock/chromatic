@@ -1,4 +1,6 @@
 #include "native_memory.h"
+#include "native_process.h"
+#include <async_simple/coro/Lazy.h>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -16,8 +18,8 @@
 #endif
 
 #ifdef CHROMATIC_DARWIN
-#include <mach/mach.h>
 #include <libkern/OSCacheControl.h>
+#include <mach/mach.h>
 #endif
 
 namespace {
@@ -124,6 +126,99 @@ std::string flagsToProtString(DWORD flags) {
   }
 }
 #endif
+
+// ─── Pattern parser ───────────────────────────────────────────────
+struct ParsedPattern {
+  std::vector<uint8_t> bytes;
+  std::vector<bool> mask; // true = must match, false = wildcard
+};
+
+ParsedPattern parsePattern(const std::string &pattern) {
+  ParsedPattern p;
+  std::istringstream iss(pattern);
+  std::string token;
+  while (iss >> token) {
+    if (token == "??" || token == "?") {
+      p.bytes.push_back(0);
+      p.mask.push_back(false);
+    } else {
+      p.bytes.push_back(
+          static_cast<uint8_t>(std::stoi(token, nullptr, 16)));
+      p.mask.push_back(true);
+    }
+  }
+  return p;
+}
+
+// ─── Boyer-Moore-Horspool with wildcard support ───────────────────
+// Build bad-character shift table.  Wildcard positions are treated as
+// "match anything", so they must not restrict the shift value.
+std::vector<chromatic::js::ScanMatch>
+bmhScan(const uint8_t *haystack, size_t haystackLen,
+         const ParsedPattern &pat) {
+  std::vector<chromatic::js::ScanMatch> results;
+  const size_t m = pat.bytes.size();
+  if (m == 0 || m > haystackLen)
+    return results;
+
+  // Bad-character shift table (classic Horspool)
+  // Default shift = pattern length.
+  // For each non-wildcard byte at position j (j < m-1):
+  //   shift[byte] = min(shift[byte], m - 1 - j)
+  // Wildcards at position j: every entry could be that position,
+  //   so shift[*] = min(shift[*], m - 1 - j)
+  size_t shift[256];
+  for (int i = 0; i < 256; i++)
+    shift[i] = m;
+
+  for (size_t j = 0; j < m - 1; j++) {
+    if (!pat.mask[j]) {
+      // Wildcard — any byte could appear here ⇒ reduce all shifts
+      size_t s = m - 1 - j;
+      for (int c = 0; c < 256; c++) {
+        if (shift[c] > s)
+          shift[c] = s;
+      }
+    } else {
+      size_t s = m - 1 - j;
+      uint8_t b = pat.bytes[j];
+      if (shift[b] > s)
+        shift[b] = s;
+    }
+  }
+
+  // If the last position is a wildcard, shift for any mismatch at end
+  // position is 1 (safest).
+  if (!pat.mask[m - 1]) {
+    for (int c = 0; c < 256; c++) {
+      if (shift[c] > 1)
+        shift[c] = 1;
+    }
+  }
+
+  // Search
+  size_t i = 0;
+  while (i + m <= haystackLen) {
+    // Compare right to left
+    bool match = true;
+    for (size_t j = m; j-- > 0;) {
+      if (pat.mask[j] && haystack[i + j] != pat.bytes[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      results.push_back(
+          {toHexAddress(reinterpret_cast<uint64_t>(haystack + i)),
+           static_cast<int>(m)});
+      // Advance by 1 to find overlapping matches
+      i += 1;
+    } else {
+      i += shift[haystack[i + m - 1]];
+    }
+  }
+  return results;
+}
 
 } // namespace
 
@@ -287,47 +382,36 @@ void NativeMemory::copyMemory(const std::string &dst, const std::string &src,
   std::memcpy(dstAddr, srcAddr, static_cast<size_t>(size));
 }
 
-std::string NativeMemory::scanMemory(const std::string &address, int size,
-                                     const std::string &pattern) {
+// ─── scanMemory — Boyer-Moore-Horspool with wildcards ─────────────
+std::vector<ScanMatch> NativeMemory::scanMemory(const std::string &address,
+                                                int size,
+                                                const std::string &pattern) {
   auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
+  auto pat = parsePattern(pattern);
+  return bmhScan(addr, static_cast<size_t>(size), pat);
+}
 
-  // Parse pattern: "48 8b ?? 00" → bytes + mask
-  std::vector<uint8_t> patternBytes;
-  std::vector<bool> patternMask; // true = must match, false = wildcard
-  std::istringstream iss(pattern);
-  std::string token;
-  while (iss >> token) {
-    if (token == "??" || token == "?") {
-      patternBytes.push_back(0);
-      patternMask.push_back(false);
-    } else {
-      patternBytes.push_back(
-          static_cast<uint8_t>(std::stoi(token, nullptr, 16)));
-      patternMask.push_back(true);
-    }
-  }
+// ─── scanModule — look up module, delegate to scanMemory ──────────
+std::vector<ScanMatch>
+NativeMemory::scanModule(const std::string &moduleName,
+                         const std::string &pattern) {
+  auto mod = NativeProcess::findModuleByName(moduleName);
+  if (!mod)
+    throw std::runtime_error("Module not found: " + moduleName);
+  return scanMemory(mod->base, mod->size, pattern);
+}
 
-  std::string result = "[";
-  bool first = true;
-  size_t patLen = patternBytes.size();
+// ─── Async variants — co_return makes Lazy<T> → JS Promise ───────
+async_simple::coro::Lazy<std::vector<ScanMatch>>
+NativeMemory::scanMemoryAsync(const std::string &address, int size,
+                              const std::string &pattern) {
+  co_return scanMemory(address, size, pattern);
+}
 
-  for (size_t i = 0; i + patLen <= static_cast<size_t>(size); i++) {
-    bool match = true;
-    for (size_t j = 0; j < patLen; j++) {
-      if (patternMask[j] && addr[i + j] != patternBytes[j]) {
-        match = false;
-        break;
-      }
-    }
-    if (match) {
-      if (!first)
-        result += ",";
-      result += "\"" + toHexAddress(reinterpret_cast<uint64_t>(addr + i)) + "\"";
-      first = false;
-    }
-  }
-  result += "]";
-  return result;
+async_simple::coro::Lazy<std::vector<ScanMatch>>
+NativeMemory::scanModuleAsync(const std::string &moduleName,
+                              const std::string &pattern) {
+  co_return scanModule(moduleName, pattern);
 }
 
 } // namespace chromatic::js

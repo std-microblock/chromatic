@@ -138,6 +138,13 @@ export class console {
      */
     static timeLineEnd(message: string): void
 }
+export class ScanMatch {
+	/**
+     *  hex
+     */
+    address: string
+	size: number
+}
 export class NativeMemory {
 	/**
      *  Read `size` bytes from `address` (hex string), return hex-encoded data
@@ -205,14 +212,42 @@ export class NativeMemory {
      */
     static copyMemory(dst: string, src: string, size: number): void
 	/**
-     *  Scan memory region for pattern (e.g. "48 8b ?? 00").
-     *  Returns JSON array of matching addresses.
+     *  Scan memory region for pattern (e.g. "48 8b ?? 00") using
+     *  Boyer-Moore-Horspool with wildcard support.
+     *  Returns vector of ScanMatch with address + pattern size.
      * @param address: string
      * @param size: number
      * @param pattern: string
-     * @returns string
+     * @returns Array<ScanMatch>
      */
-    static scanMemory(address: string, size: number, pattern: string): string
+    static scanMemory(address: string, size: number, pattern: string): Array<ScanMatch>
+	/**
+     *  Scan within a named module for pattern.
+     *  Internally looks up module base+size, then delegates to scanMemory.
+     * @param moduleName: string
+     * @param pattern: string
+     * @returns Array<ScanMatch>
+     */
+    static scanModule(moduleName: string, pattern: string): Array<ScanMatch>
+	/**
+     *  Async variant of scanMemory — returns Lazy
+     * <T
+     * > (→ JS Promise).
+     * @param address: string
+     * @param size: number
+     * @param pattern: string
+     * @returns Promise<Array<ScanMatch>>
+     */
+    static scanMemoryAsync(address: string, size: number, pattern: string): Promise<Array<ScanMatch>>
+	/**
+     *  Async variant of scanModule — returns Lazy
+     * <T
+     * > (→ JS Promise).
+     * @param moduleName: string
+     * @param pattern: string
+     * @returns Promise<Array<ScanMatch>>
+     */
+    static scanModuleAsync(moduleName: string, pattern: string): Promise<Array<ScanMatch>>
 }
 export class ModuleInfo {
 	name: string
@@ -338,6 +373,20 @@ export class InstructionAnalysis {
 	isPcRelative: boolean
 	size: number
 }
+export class XrefResult {
+	/**
+     *  hex — the referring instruction's address
+     */
+    address: string
+	/**
+     *  "call" | "branch" | "data"
+     */
+    type: string
+	/**
+     *  instruction size
+     */
+    size: number
+}
 export class NativeDisassembler {
 	/**
      *  Disassemble one instruction at address.
@@ -358,6 +407,55 @@ export class NativeDisassembler {
      * @returns InstructionAnalysis
      */
     static analyzeInstruction(address: string): InstructionAnalysis
+	/**
+     *  Find all instructions in [rangeStart, rangeStart+rangeSize) that
+     *  reference targetAddr (call, branch, or data/PC-relative load).
+     * @param rangeStart: string
+     * @param rangeSize: number
+     * @param targetAddr: string
+     * @returns Array<XrefResult>
+     */
+    static findXrefs(rangeStart: string, rangeSize: number, targetAddr: string): Array<XrefResult>
+	/**
+     *  Find xrefs within a named module.
+     * @param moduleName: string
+     * @param targetAddr: string
+     * @returns Array<XrefResult>
+     */
+    static findXrefsInModule(moduleName: string, targetAddr: string): Array<XrefResult>
+	/**
+     *  Async variant of findXrefs.
+     * @param rangeStart: string
+     * @param rangeSize: number
+     * @param targetAddr: string
+     * @returns Promise<Array<XrefResult>>
+     */
+    static findXrefsAsync(rangeStart: string, rangeSize: number, targetAddr: string): Promise<Array<XrefResult>>
+	/**
+     *  Async variant of findXrefsInModule.
+     * @param moduleName: string
+     * @param targetAddr: string
+     * @returns Promise<Array<XrefResult>>
+     */
+    static findXrefsInModuleAsync(moduleName: string, targetAddr: string): Promise<Array<XrefResult>>
+	/**
+     *  Iterate instructions starting at `address` for `count` instructions,
+     *  calling `filter` on each. Return only instructions for which filter
+     *  returns true.
+     * @param address: string
+     * @param count: number
+     * @param filter: ((arg1: InstructionInfo) => boolean)
+     * @returns Array<InstructionInfo>
+     */
+    static filterInstructions(address: string, count: number, filter: ((arg1: InstructionInfo) => boolean)): Array<InstructionInfo>
+	/**
+     *  Async variant of filterInstructions.
+     * @param address: string
+     * @param count: number
+     * @param filter: ((arg1: InstructionInfo) => boolean)
+     * @returns Promise<Array<InstructionInfo>>
+     */
+    static filterInstructionsAsync(address: string, count: number, filter: ((arg1: InstructionInfo) => boolean)): Promise<Array<InstructionInfo>>
 }
 export class NativeFFI {
 	/**

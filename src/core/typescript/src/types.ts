@@ -74,6 +74,24 @@ export interface InstructionInfo {
   regsWrite: number[];
 }
 
+/** Result of a memory pattern scan match. */
+export interface ScanMatch {
+  /** Address where the pattern was found. */
+  address: NativePointer;
+  /** Size of the matched pattern in bytes. */
+  size: number;
+}
+
+/** Result of a cross-reference (xref) search. */
+export interface XrefResult {
+  /** Address of the referring instruction. */
+  address: NativePointer;
+  /** Type of reference: "call", "branch", or "data". */
+  type: string;
+  /** Size of the referring instruction in bytes. */
+  size: number;
+}
+
 export interface InvocationArgs {
   [index: number]: NativePointer;
 }

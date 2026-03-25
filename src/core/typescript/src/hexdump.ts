@@ -3,8 +3,19 @@ import { NativePointer } from './native-pointer';
 import type { NativePointerValue } from './types';
 
 /**
- * hexdump — produce a hex dump of memory at the given address.
- * Compatible with Frida's hexdump() function.
+ * Produce a hex dump of memory at the given address or `ArrayBuffer`.
+ *
+ * Compatible with Frida's `hexdump()` function. Outputs a formatted
+ * multi-line string with address, hex bytes, and ASCII columns.
+ *
+ * @param target  - A {@link NativePointerValue} pointing to native memory,
+ *                  or an `ArrayBuffer` to dump.
+ * @param options - Formatting options:
+ *   - `offset`  — byte offset into the target (default `0`).
+ *   - `length`  — number of bytes to dump (default `256`).
+ *   - `header`  — whether to include a column header line (default `true`).
+ *   - `ansi`    — reserved for future ANSI color support (default `false`).
+ * @returns Formatted hex dump string.
  */
 export function hexdump(
   target: NativePointerValue | ArrayBuffer,
