@@ -4,7 +4,13 @@
 // Create a string for xref tests to work
 static const std::string kXrefString = "__CHROMATIC_TEST_XREF__";
 // And avoid it being optimized out
+#ifdef _WIN32
+#pragma optimize("", off)
+static const std::string& kXrefStringRef = kXrefString;
+#pragma optimize("", on)
+#else
 [[maybe_unused]] static const std::string& kXrefStringRef __attribute__((used)) = kXrefString;
+#endif
 
 TEST_F(ChromaticTest, Memory_AllocReadWriteU32) {
   EXPECT_TRUE(jsEval(R"(
