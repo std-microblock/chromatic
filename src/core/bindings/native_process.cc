@@ -20,7 +20,8 @@
 #include <mach/mach.h>
 #endif
 
-#ifdef CHROMATIC_LINUX
+#if defined(CHROMATIC_LINUX) || defined(CHROMATIC_ANDROID)
+#include <elf.h>
 #include <fstream>
 #include <link.h>
 #endif
@@ -178,6 +179,7 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
     std::string path;
     uint64_t base;
     uint64_t end;
+    std::vector<SegmentInfo> segments;
   };
   std::vector<LinuxModInfo> modules;
 
@@ -200,6 +202,7 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
               m.base = start;
             if (end > m.end)
               m.end = end;
+            m.segments.push_back({start, end - start});
             found = true;
             break;
           }
@@ -209,7 +212,7 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
           auto pos = name.find_last_of('/');
           if (pos != std::string::npos)
             name = name.substr(pos + 1);
-          modules.push_back({name, pathStr, start, end});
+          modules.push_back({name, pathStr, start, end, {{start, end - start}}});
         }
       }
     }
@@ -220,7 +223,8 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
         m.name,
         toHexAddr(m.base),
         static_cast<int>(m.end - m.base),
-        m.path});
+        m.path,
+        m.segments});
   }
 #endif
 
@@ -597,10 +601,110 @@ std::vector<ExportInfo> NativeProcess::enumerateExports(const std::string &modul
     dlclose(handle);
 
 #elif defined(CHROMATIC_LINUX) || defined(CHROMATIC_ANDROID)
-  void *handle = dlopen(moduleName.c_str(), RTLD_NOLOAD | RTLD_LAZY);
-  if (handle) {
-    dlclose(handle);
-  }
+  // Walk loaded shared objects via dl_iterate_phdr to find the target module,
+  // then parse its ELF dynamic symbol table (.dynsym / .dynstr).
+  struct IterCtx {
+    const std::string *moduleName;
+    std::vector<ExportInfo> *result;
+  };
+  IterCtx ctx{&moduleName, &result};
+
+  dl_iterate_phdr(
+      [](struct dl_phdr_info *info, size_t, void *data) -> int {
+        auto &ctx = *static_cast<IterCtx *>(data);
+        std::string path = info->dlpi_name ? info->dlpi_name : "";
+        std::string shortName = path;
+        auto pos = shortName.find_last_of('/');
+        if (pos != std::string::npos)
+          shortName = shortName.substr(pos + 1);
+
+        if (shortName != *ctx.moduleName && path != *ctx.moduleName)
+          return 0; // continue iteration
+
+        // Find PT_DYNAMIC
+        const ElfW(Dyn) *dyn = nullptr;
+        for (int i = 0; i < info->dlpi_phnum; i++) {
+          if (info->dlpi_phdr[i].p_type == PT_DYNAMIC) {
+            dyn = reinterpret_cast<const ElfW(Dyn) *>(
+                info->dlpi_addr + info->dlpi_phdr[i].p_vaddr);
+            break;
+          }
+        }
+        if (!dyn)
+          return 1; // stop
+
+        const ElfW(Sym) *symtab = nullptr;
+        const char *strtab = nullptr;
+        size_t nchain = 0;          // from DT_HASH
+        const uint32_t *gnuBuckets = nullptr;
+        size_t gnuNbuckets = 0;
+        uint32_t gnuSymndx = 0;     // from DT_GNU_HASH
+
+        for (const ElfW(Dyn) *d = dyn; d->d_tag != DT_NULL; d++) {
+          switch (d->d_tag) {
+          case DT_SYMTAB:
+            symtab = reinterpret_cast<const ElfW(Sym) *>(d->d_un.d_ptr);
+            break;
+          case DT_STRTAB:
+            strtab = reinterpret_cast<const char *>(d->d_un.d_ptr);
+            break;
+          case DT_HASH: {
+            auto hash = reinterpret_cast<const uint32_t *>(d->d_un.d_ptr);
+            nchain = hash[1]; // nchain == number of symbols
+            break;
+          }
+          case DT_GNU_HASH: {
+            auto gh = reinterpret_cast<const uint32_t *>(d->d_un.d_ptr);
+            gnuNbuckets = gh[0];
+            gnuSymndx = gh[1];
+            // bloom filter: gh[2] words starting at gh[4]
+            // buckets follow bloom
+            uint32_t bloomWords = gh[2];
+            gnuBuckets = gh + 4 + bloomWords;
+            break;
+          }
+          }
+        }
+
+        if (!symtab || !strtab)
+          return 1; // stop
+
+        // Determine symbol count: prefer DT_HASH, fall back to DT_GNU_HASH
+        size_t nsyms = nchain;
+        if (nsyms == 0 && gnuBuckets) {
+          // Find max bucket value, then walk chain from there
+          uint32_t maxSym = 0;
+          for (size_t i = 0; i < gnuNbuckets; i++) {
+            if (gnuBuckets[i] > maxSym)
+              maxSym = gnuBuckets[i];
+          }
+          if (maxSym >= gnuSymndx) {
+            const uint32_t *chains = gnuBuckets + gnuNbuckets;
+            uint32_t idx = maxSym - gnuSymndx;
+            while (!(chains[idx] & 1))
+              idx++;
+            nsyms = gnuSymndx + idx + 1;
+          }
+        }
+
+        for (size_t i = 0; i < nsyms; i++) {
+          const auto &sym = symtab[i];
+          if (sym.st_shndx == SHN_UNDEF || sym.st_value == 0)
+            continue;
+          unsigned char bind = ELF64_ST_BIND(sym.st_info);
+          if (bind != STB_GLOBAL && bind != STB_WEAK)
+            continue;
+          const char *name = strtab + sym.st_name;
+          if (!name[0])
+            continue;
+          unsigned char type = ELF64_ST_TYPE(sym.st_info);
+          const char *typeStr = (type == STT_FUNC) ? "function" : "variable";
+          uint64_t addr = info->dlpi_addr + sym.st_value;
+          ctx.result->push_back({typeStr, name, toHexAddr(addr)});
+        }
+        return 1; // stop — found our module
+      },
+      &ctx);
 #endif
 
   return result;

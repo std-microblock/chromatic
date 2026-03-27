@@ -5,11 +5,17 @@
 
 namespace chromatic::js {
 
+struct SegmentInfo {
+  uint64_t base;
+  uint64_t size;
+};
+
 struct ModuleInfo {
   std::string name;
   std::string base; // hex address
   int size;
   std::string path;
+  std::vector<SegmentInfo> segments; // individual mapped regions (not exposed to JS)
 };
 
 struct RangeInfo {

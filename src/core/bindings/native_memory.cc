@@ -401,14 +401,30 @@ std::vector<ScanMatch> NativeMemory::scanMemory(const std::string &address,
   return bmhScan(addr, static_cast<size_t>(size), pat);
 }
 
-// ─── scanModule — look up module, delegate to scanMemory ──────────
+// ─── scanModule — scan each mapped segment of the module ──────────
 std::vector<ScanMatch>
 NativeMemory::scanModule(const std::string &moduleName,
                          const std::string &pattern) {
   auto mod = NativeProcess::findModuleByName(moduleName);
   if (!mod)
     throw std::runtime_error("Module not found: " + moduleName);
-  return scanMemory(mod->base, mod->size, pattern);
+
+  auto pat = parsePattern(pattern);
+  std::vector<ScanMatch> results;
+
+  if (mod->segments.empty()) {
+    // No segment info (Windows / macOS) — the full range is contiguous
+    auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(mod->base));
+    return bmhScan(addr, static_cast<size_t>(mod->size), pat);
+  }
+
+  // Scan each individually mapped segment to avoid unmapped gaps
+  for (const auto &seg : mod->segments) {
+    auto hits = bmhScan(reinterpret_cast<const uint8_t *>(seg.base),
+                        static_cast<size_t>(seg.size), pat);
+    results.insert(results.end(), hits.begin(), hits.end());
+  }
+  return results;
 }
 
 // ─── Async variants — co_return makes Lazy<T> → JS Promise ───────
