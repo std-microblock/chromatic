@@ -57,16 +57,21 @@ jobs:
         working-directory: src/core/typescript
         run: pnpm build
 
-      - name: Install Clang (Linux)
+      - name: Install GCC 15 (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang
+          sudo apt-get install -y software-properties-common
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-15 g++-15
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 100
+          sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 100
 
       - name: Configure xmake
         if: runner.os == 'Linux'
         run: |
-          xmake f -m releasedbg -v -y --toolchain=clang
+          xmake f -m releasedbg -v -y --toolchain=gcc
       
       - name: Configure xmake
         if: runner.os != 'Linux'
