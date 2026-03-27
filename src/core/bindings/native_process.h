@@ -2,7 +2,7 @@
 #include <optional>
 #include <string>
 #include <vector>
-
+#include <cstdint>
 namespace chromatic::js {
 
 struct SegmentInfo {
