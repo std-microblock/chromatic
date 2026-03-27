@@ -195,10 +195,10 @@ static LONG CALLBACK vehHandler(PEXCEPTION_POINTERS ep) {
   g_lock.lock();
   auto handlers = g_handlers;
   g_lock.unlock();
-
+  auto sctx = std::make_shared<chromatic::js::ExceptionContext>(std::move(ctx));
   for (auto &entry : handlers) {
     if (entry.type == ctx.type) {
-      if (entry.callback(ctx) == chromatic::js::HandleAction::Handled)
+      if (entry.callback(sctx) == chromatic::js::HandleAction::Handled)
         return EXCEPTION_CONTINUE_EXECUTION;
     }
   }
