@@ -232,11 +232,21 @@ std::string NativeMemory::readMemory(const std::string &address, int size) {
 std::string NativeMemory::safeReadMemory(const std::string &address, int size) {
 #ifdef CHROMATIC_WINDOWS
   auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
-  __try {
-    return bytesToHex(addr, static_cast<size_t>(size));
-  } __except (EXCEPTION_EXECUTE_HANDLER) {
-    return "";
-  }
+  std::string result;
+  
+  auto readMemory = [&]() -> bool {
+    __try {
+      result.resize(size * 2);
+      for (int i = 0; i < size; ++i) {
+        sprintf(&result[i * 2], "%02x", addr[i]);
+      }
+      return true;
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+      return false;
+    }
+  };
+  
+  return readMemory() ? result : "";
 #else
   auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
 
