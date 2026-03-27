@@ -39,6 +39,12 @@ jobs:
         with:
           xmake-version: 3.0.7
 
+      - name: Install Zig (Linux)
+        if: runner.os == 'Linux'
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -57,8 +63,13 @@ jobs:
         working-directory: src/core/typescript
         run: pnpm build
 
-      - name: Configure xmake
+      - name: Configure xmake (non-Linux)
+        if: runner.os != 'Linux'
         run: xmake f -m releasedbg -v -y
+
+      - name: Configure xmake (Linux with zig toolchain)
+        if: runner.os == 'Linux'
+        run: xmake f -m releasedbg -p linux -a ${{ matrix.arch }} --toolchain=zig -v -y
 
       - name: Build
         run: xmake build -y
