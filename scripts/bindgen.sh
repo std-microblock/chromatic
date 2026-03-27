@@ -1,1 +1,1 @@
-npx breeze-bindgen -i src/core/bindings/binding_types.h --tsModuleName chromatic ----nameFilter chromatic::js
+npx breeze-bindgen@1.1.19 -i src/core/bindings/binding_types.h --tsModuleName chromatic ----nameFilter chromatic::js

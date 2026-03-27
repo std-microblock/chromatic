@@ -1,6 +1,8 @@
 // Shared test fixture and helpers for Chromatic tests
 #pragma once
 #include "core/script.h"
+#include "core/bindings/native_breakpoint.h"
+#include "core/bindings/native_hw_breakpoint.h"
 #include <cstdint>
 #include <cstdio>
 #include <gtest/gtest.h>
@@ -61,5 +63,13 @@ protected:
   static void TearDownTestSuite() {
     delete getRuntime();
     getRuntime() = nullptr;
+  }
+
+  void TearDown() override {
+    // Clean up all breakpoints after each test to prevent slot leaks
+    // This ensures tests don't interfere with each other even if they
+    // throw exceptions before calling bp.remove()
+    chromatic::js::NativeSoftwareBreakpoint::removeAll();
+    chromatic::js::NativeHardwareBreakpoint::removeAll();
   }
 };

@@ -3,3 +3,5 @@
 build
 node_modules
 dist
+.lldb_cmds
+output.log

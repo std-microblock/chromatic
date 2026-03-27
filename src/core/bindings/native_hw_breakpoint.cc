@@ -389,43 +389,69 @@ static void winClearDebugReg(int slot) {
 
 chromatic::js::HandleAction
 hwBpSigtrapHandler(std::shared_ptr<chromatic::js::ExceptionContext> ctx) {
+  // For execute breakpoints, check if PC matches a breakpoint address
   auto it = g_hwByAddress.find(ctx->pc);
-  if (it == g_hwByAddress.end()) {
-#ifdef CHROMATIC_X64
-    // On x86, debug exception fires with RIP at the instruction
-    // Try pc directly (HW BP fires before execution)
-    it = g_hwByAddress.find(ctx->pc);
-    if (it == g_hwByAddress.end())
-      return chromatic::js::HandleAction::NotHandled;
-#else
-    return chromatic::js::HandleAction::NotHandled;
-#endif
+  if (it != g_hwByAddress.end()) {
+    auto *entry = it->second;
+    if (entry->type == HwBpType::Execute && entry->trampolineCode) {
+      // Redirect to trampoline
+      ctx->setPc(reinterpret_cast<uint64_t>(entry->trampolineCode));
+      return chromatic::js::HandleAction::Handled;
+    }
   }
 
-  auto *entry = it->second;
+  // For data watchpoints, we need to check DR6 to find which slot triggered
+#if defined(CHROMATIC_DARWIN) && defined(CHROMATIC_X64)
+  if (ctx->$platformContext) {
+    auto *uctx = static_cast<ucontext_t *>(ctx->$platformContext);
+    uint64_t dr6 = uctx->uc_mcontext->__ss.__dr6;
 
-  if (entry->type == HwBpType::Execute && entry->trampolineCode) {
-    // Redirect to trampoline
-    ctx->setPc(reinterpret_cast<uint64_t>(entry->trampolineCode));
-  } else {
-    // For data watchpoints: just call the callback synchronously
-    // (We're in a signal handler but data watchpoints need immediate handling)
-    // The callback is simple - just records the event.
-    // Actually, for safety, we should queue it. But for now, we skip
-    // the execute step since the instruction hasn't executed yet for
-    // execute BPs, and has executed for data BPs.
-    // For data watchpoints, just resume (the callback will be triggered
-    // via the trampoline mechanism if we set one up, or we can do a
-    // simplified approach).
-    if (entry->onHit) {
-      std::string ctxHex = toHexAddr(ctx->pc);
-      try {
-        entry->onHit(ctxHex);
-      } catch (...) {
+    // Check each slot (DR0-DR3)
+    for (int slot = 0; slot < 4; slot++) {
+      if (dr6 & (1ULL << slot)) {
+        // This slot triggered - find the entry
+        for (auto &[addr, entry] : g_hwByAddress) {
+          if (entry->slot == slot) {
+            if (entry->onHit) {
+              std::string ctxHex = toHexAddr(ctx->pc);
+              try {
+                entry->onHit(ctxHex);
+              } catch (...) {
+              }
+            }
+            return chromatic::js::HandleAction::Handled;
+          }
+        }
       }
     }
   }
-  return chromatic::js::HandleAction::Handled;
+#elif defined(CHROMATIC_WINDOWS)
+  if (ctx->$platformContext) {
+    auto *ep = static_cast<PEXCEPTION_POINTERS>(ctx->$platformContext);
+    uint64_t dr6 = ep->ContextRecord->Dr6;
+
+    // Check each slot (DR0-DR3)
+    for (int slot = 0; slot < 4; slot++) {
+      if (dr6 & (1ULL << slot)) {
+        // This slot triggered - find the entry
+        for (auto &[addr, entry] : g_hwByAddress) {
+          if (entry->slot == slot) {
+            if (entry->onHit) {
+              std::string ctxHex = toHexAddr(ctx->pc);
+              try {
+                entry->onHit(ctxHex);
+              } catch (...) {
+              }
+            }
+            return chromatic::js::HandleAction::Handled;
+          }
+        }
+      }
+    }
+  }
+#endif
+
+  return chromatic::js::HandleAction::NotHandled;
 }
 
 static chromatic::js::internal::ExceptionCallbackId g_hwHandlerId = 0;
