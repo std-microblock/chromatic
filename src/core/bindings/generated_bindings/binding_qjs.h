@@ -685,7 +685,7 @@ template<> struct js_bind<chromatic::js::NativeMemoryAccessMonitor> {
     }
 };
 
-inline void bindAll(qjs::Context::Module &mod) {
+inline void chromatic_bindAll(qjs::Context::Module &mod) {
 
     js_bind<chromatic::js::console>::bind(mod);
 

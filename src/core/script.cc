@@ -30,7 +30,7 @@ void runtime::reset() {
   cleanup();
   context.on_bind.clear();
   context.on_bind.push_back(
-      [this]() { bindAll(context.js->addModule("chromatic")); });
+      [this]() { chromatic_bindAll(context.js->addModule("chromatic")); });
   context.reset_runtime();
   if (auto res = context.eval_string(index_js, "<index>"); !res) {
     fmt::print("Failed to eval index.js: {}\n", res.error());
