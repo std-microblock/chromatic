@@ -13,3 +13,4 @@
 #include "native_breakpoint.h"
 #include "native_hw_breakpoint.h"
 #include "native_memory_access_monitor.h"
+#include "script_lifecycle.h"

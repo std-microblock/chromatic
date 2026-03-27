@@ -685,6 +685,30 @@ template<> struct js_bind<chromatic::js::NativeMemoryAccessMonitor> {
     }
 };
 
+template <> struct qjs::js_traits<chromatic::js::ScriptLifecycle> {
+    static chromatic::js::ScriptLifecycle unwrap(JSContext *ctx, JSValueConst v) {
+        chromatic::js::ScriptLifecycle obj;
+
+        return obj;
+    }
+
+    static JSValue wrap(JSContext *ctx, const chromatic::js::ScriptLifecycle &val) noexcept {
+        JSValue obj = JS_NewObject(ctx);
+
+        return obj;
+    }
+};
+template<> struct js_bind<chromatic::js::ScriptLifecycle> {
+    static void bind(qjs::Context::Module &mod) {
+        mod.class_<chromatic::js::ScriptLifecycle>("ScriptLifecycle")
+            .constructor<>()
+                .static_fun<&chromatic::js::ScriptLifecycle::onDispose>("onDispose")
+                .static_fun<&chromatic::js::ScriptLifecycle::removeDisposeCallback>("removeDisposeCallback")
+                .static_fun<&chromatic::js::ScriptLifecycle::removeAllDisposeCallbacks>("removeAllDisposeCallbacks")
+            ;
+    }
+};
+
 inline void chromatic_bindAll(qjs::Context::Module &mod) {
 
     js_bind<chromatic::js::console>::bind(mod);
@@ -724,5 +748,7 @@ inline void chromatic_bindAll(qjs::Context::Module &mod) {
     js_bind<chromatic::js::MemoryAccessDetails>::bind(mod);
 
     js_bind<chromatic::js::NativeMemoryAccessMonitor>::bind(mod);
+
+    js_bind<chromatic::js::ScriptLifecycle>::bind(mod);
 
 }

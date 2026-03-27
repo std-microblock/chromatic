@@ -15,6 +15,7 @@ import { Interceptor } from './interceptor/index';
 import { ExceptionHandler } from './exception-handler';
 import { SoftwareBreakpoint, HardwareBreakpoint } from './breakpoint';
 import { MemoryAccessMonitor } from './memory-access-monitor';
+import { Script } from './script-lifecycle';
 
 // Register globals (Frida-compatible)
 const g = globalThis as any;
@@ -36,6 +37,9 @@ g.ExceptionHandler = ExceptionHandler;
 g.SoftwareBreakpoint = SoftwareBreakpoint;
 g.HardwareBreakpoint = HardwareBreakpoint;
 g.MemoryAccessMonitor = MemoryAccessMonitor;
+
+// Script lifecycle
+g.Script = Script;
 
 // Utility functions
 g.ptr = ptr;

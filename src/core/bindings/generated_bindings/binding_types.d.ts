@@ -709,5 +709,25 @@ export class NativeMemoryAccessMonitor {
      */
     static drainPending(): number
 }
+export class ScriptLifecycle {
+	/**
+	 *  Register a callback to be called before script dispose/reload.
+	 *  Returns callbackId (hex) for removal.
+	 * @param callback: (() => void)
+	 * @returns string
+	 */
+    static onDispose(callback: (() => void)): string
+	/**
+	 *  Remove a dispose callback by ID.
+	 * @param callbackId: string
+	 * @returns void
+	 */
+    static removeDisposeCallback(callbackId: string): void
+	/**
+	 *  Remove all dispose callbacks.
+	  @returns void
+	 */
+    static removeAllDisposeCallbacks(): void
+}
 }
 

@@ -6,6 +6,7 @@ set_languages("c++23")
 includes("deps/breeze-js.lua")
 add_requires("breeze-js-runtime")
 add_requires("capstone", "fmt", "libffi", "asmjit", "gtest")
+add_requires("liblzma", "reflect-cpp")
 
 -- Platform defines
 if is_os("windows") then
@@ -53,3 +54,9 @@ target("chromatic-test")
     add_files("src/test/**.cc")
     add_deps("chromatic-core")
     add_packages("gtest")
+
+target("chromatic-injectee")
+    set_kind("shared")
+    add_files("src/injectee/**.cc")
+    add_deps("chromatic-core")
+    add_packages("liblzma", "reflect-cpp", "fmt")

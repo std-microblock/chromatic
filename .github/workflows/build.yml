@@ -3,6 +3,7 @@ name: Build & Test
 on:
   push:
     branches: [main, master]
+    tags: ['v*']
   pull_request:
     branches: [main, master]
 
@@ -14,19 +15,24 @@ jobs:
         include:
           - os: macos-latest
             arch: arm64
-            name: macOS ARM64
+            name: macos-arm64
           - os: macos-15-intel
             arch: x64
-            name: macOS x64
+            name: macos-x64
           - os: ubuntu-24.04
             arch: x64
-            name: Linux x64
+            name: linux-x64
           - os: ubuntu-24.04-arm
             arch: arm64
-            name: Linux ARM64
+            name: linux-arm64
           - os: windows-latest
             arch: x64
-            name: Windows x64
+            name: windows-x64
+          # Android cross-compile on Linux x64
+          - os: ubuntu-24.04
+            arch: arm64
+            name: android-arm64
+            android: true
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.name }}
@@ -40,25 +46,29 @@ jobs:
           xmake-version: 3.0.7
 
       - name: Setup pnpm
+        if: ${{ !matrix.android }}
         uses: pnpm/action-setup@v4
         with:
           version: 10
 
       - name: Setup Node.js
+        if: ${{ !matrix.android }}
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Install TS dependencies
+        if: ${{ !matrix.android }}
         working-directory: src/core/typescript
         run: pnpm install
 
       - name: Build TypeScript
+        if: ${{ !matrix.android }}
         working-directory: src/core/typescript
         run: pnpm build
 
-      - name: Install GCC 15 (Linux)
-        if: runner.os == 'Linux'
+      - name: Install GCC 15 (Linux native)
+        if: runner.os == 'Linux' && !matrix.android
         run: |
           sudo apt-get update
           sudo apt-get install -y software-properties-common
@@ -68,18 +78,54 @@ jobs:
           sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-15 100
           sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-15 100
 
-      - name: Configure xmake
-        if: runner.os == 'Linux'
+      - name: Setup Android NDK
+        if: ${{ matrix.android }}
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27c
+
+      - name: Configure xmake (Android)
+        if: ${{ matrix.android }}
+        run: |
+          xmake f -p android --ndk=${{ steps.setup-ndk.outputs.ndk-path }} --ndk_sdkver=21 -a arm64-v8a -m releasedbg -v -y
+
+      - name: Configure xmake (Linux native)
+        if: runner.os == 'Linux' && !matrix.android
         run: |
           xmake f -m releasedbg -v -y --toolchain=gcc
-      
-      - name: Configure xmake
+
+      - name: Configure xmake (non-Linux)
         if: runner.os != 'Linux'
         run: |
           xmake f -m releasedbg -v -y
 
-      - name: Build
+      - name: Build (Android - injectee only)
+        if: ${{ matrix.android }}
+        run: xmake build -y chromatic-injectee
+
+      - name: Build (native)
+        if: ${{ !matrix.android }}
         run: xmake build -y
 
       - name: Test
+        if: ${{ !matrix.android }}
         run: xmake run chromatic-test
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            find build -name "chromatic-injectee.dll" -exec cp {} artifacts/ \;
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            find build -name "libchromatic-injectee.dylib" -exec cp {} artifacts/ \;
+          else
+            find build -name "libchromatic-injectee.so" -exec cp {} artifacts/ \;
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chromatic-injectee-${{ matrix.name }}
+          path: artifacts/*

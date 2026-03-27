@@ -5,6 +5,7 @@
 #include "bindings/native_hw_breakpoint.h"
 #include "bindings/native_interceptor.h"
 #include "bindings/native_memory_access_monitor.h"
+#include "bindings/script_lifecycle.h"
 #include "fmt/base.h"
 
 extern "C" {
@@ -18,6 +19,7 @@ std::string index_js = {(const char *)_binary_index_js_start,
 namespace chromatic::script {
 void runtime::cleanup() {
   // Auto-cleanup all subsystems when the script context is disposed
+  chromatic::js::ScriptLifecycle::removeAllDisposeCallbacks();
   chromatic::js::NativeMemoryAccessMonitor::disableAll();
   chromatic::js::NativeHardwareBreakpoint::removeAll();
   chromatic::js::NativeSoftwareBreakpoint::removeAll();
@@ -26,7 +28,9 @@ void runtime::cleanup() {
   chromatic::js::NativeExceptionHandler::disable();
 }
 void runtime::reset() {
-  // Auto-cleanup before resetting the JS runtime
+  // Let JS do its cleanup first via dispose callbacks
+  chromatic::js::ScriptLifecycle::_callDisposeCallbacks();
+  // Then native cleanup
   cleanup();
   context.on_bind.clear();
   context.on_bind.push_back(
