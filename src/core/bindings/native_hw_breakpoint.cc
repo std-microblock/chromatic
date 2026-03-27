@@ -394,7 +394,7 @@ hwBpSigtrapHandler(std::shared_ptr<chromatic::js::ExceptionContext> ctx) {
 #ifdef CHROMATIC_X64
     // On x86, debug exception fires with RIP at the instruction
     // Try pc directly (HW BP fires before execution)
-    it = g_hwByAddress.find(ctx.pc);
+    it = g_hwByAddress.find(ctx->pc);
     if (it == g_hwByAddress.end())
       return chromatic::js::HandleAction::NotHandled;
 #else
