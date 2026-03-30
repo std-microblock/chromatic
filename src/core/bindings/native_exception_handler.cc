@@ -213,9 +213,8 @@ static struct sigaction g_old_sigbus{};
 static struct sigaction g_old_sigtrap{};
 static struct sigaction g_old_sigill{};
 
-static void
-forwardToOriginal(int sig, siginfo_t *info, void *ucontext,
-                  const struct sigaction &old_sa) {
+static void forwardToOriginal(int sig, siginfo_t *info, void *ucontext,
+                              const struct sigaction &old_sa) {
   if (old_sa.sa_flags & SA_SIGINFO) {
     if (old_sa.sa_sigaction)
       old_sa.sa_sigaction(sig, info, ucontext);
@@ -371,7 +370,7 @@ void ExceptionContext::setSingleStep(bool enable) {
     uctx->uc_mcontext->__ss.__cpsr |= (1UL << 21); // SS bit
   else
     uctx->uc_mcontext->__ss.__cpsr &= ~(1UL << 21);
-#elif defined(CHROMATIC_X64) // Linux x86_64
+#elif defined(CHROMATIC_X64)   // Linux x86_64
   if (enable)
     uctx->uc_mcontext.gregs[REG_EFL] |= 0x100;
   else
@@ -403,9 +402,9 @@ void NativeExceptionHandler::disable() {
 
 bool NativeExceptionHandler::isEnabled() { return g_enabled.load(); }
 
-std::string
-NativeExceptionHandler::addCallback(const std::string &type,
-                                     std::function<void(std::string, std::string)> callback) {
+std::string NativeExceptionHandler::addCallback(
+    const std::string &type,
+    std::function<void(std::string, std::string)> callback) {
   auto excType = stringToExceptionType(type);
   if (excType == ExceptionType::Unknown)
     throw std::runtime_error("Unknown exception type: " + type);
@@ -428,8 +427,9 @@ NativeExceptionHandler::addCallback(const std::string &type,
 void NativeExceptionHandler::removeCallback(const std::string &callbackId) {
   uint64_t id = std::stoull(callbackId, nullptr, 16);
   g_lock.lock();
-  auto it = std::remove_if(g_jsCallbacks.begin(), g_jsCallbacks.end(),
-                            [id](const JsCallbackEntry &e) { return e.id == id; });
+  auto it =
+      std::remove_if(g_jsCallbacks.begin(), g_jsCallbacks.end(),
+                     [id](const JsCallbackEntry &e) { return e.id == id; });
   g_jsCallbacks.erase(it, g_jsCallbacks.end());
   g_lock.unlock();
 }
@@ -445,7 +445,7 @@ void NativeExceptionHandler::removeAllCallbacks() {
 namespace internal {
 
 ExceptionCallbackId registerHandler(ExceptionType type,
-                                     ExceptionCallback callback) {
+                                    ExceptionCallback callback) {
   g_lock.lock();
   auto id = g_nextId++;
   g_handlers.push_back({id, type, std::move(callback)});
@@ -455,9 +455,8 @@ ExceptionCallbackId registerHandler(ExceptionType type,
 
 void unregisterHandler(ExceptionCallbackId id) {
   g_lock.lock();
-  auto it = std::remove_if(
-      g_handlers.begin(), g_handlers.end(),
-      [id](const HandlerEntry &e) { return e.id == id; });
+  auto it = std::remove_if(g_handlers.begin(), g_handlers.end(),
+                           [id](const HandlerEntry &e) { return e.id == id; });
   g_handlers.erase(it, g_handlers.end());
   g_lock.unlock();
 }

@@ -39,7 +39,8 @@ struct WatchedRange {
   bool fired;        // one-shot: true after first access
 };
 
-// ─── Pending access event (recorded in signal handler, drained in JS context) ───
+// ─── Pending access event (recorded in signal handler, drained in JS context)
+// ───
 
 struct PendingEvent {
   uint64_t monitorId;
@@ -87,10 +88,14 @@ static PendingRing g_pending;
 
 static const char *accessCodeToString(int code) {
   switch (code) {
-  case 1: return "read";
-  case 2: return "write";
-  case 3: return "execute";
-  default: return "unknown";
+  case 1:
+    return "read";
+  case 2:
+    return "write";
+  case 3:
+    return "execute";
+  default:
+    return "unknown";
   }
 }
 
@@ -111,8 +116,8 @@ static size_t getPageSize() {
 static void setProtection(uint64_t addr, size_t size, int prot) {
 #ifdef CHROMATIC_WINDOWS
   DWORD oldProt;
-  VirtualProtect(reinterpret_cast<void *>(addr), size,
-                 static_cast<DWORD>(prot), &oldProt);
+  VirtualProtect(reinterpret_cast<void *>(addr), size, static_cast<DWORD>(prot),
+                 &oldProt);
 #else
   mprotect(reinterpret_cast<void *>(addr), size, prot);
 #endif
@@ -182,8 +187,7 @@ monitorSegvHandler(std::shared_ptr<chromatic::js::ExceptionContext> ctx) {
 namespace chromatic::js {
 
 std::string NativeMemoryAccessMonitor::enable(
-    const std::vector<std::string> &addresses,
-    const std::vector<int> &sizes,
+    const std::vector<std::string> &addresses, const std::vector<int> &sizes,
     std::function<void(std::string, std::string, std::string, int)> onAccess) {
 
   if (addresses.size() != sizes.size())
@@ -227,8 +231,8 @@ std::string NativeMemoryAccessMonitor::enable(
     // Remove all permissions from the page
 #ifdef CHROMATIC_WINDOWS
     DWORD oldProt;
-    VirtualProtect(reinterpret_cast<void *>(pageBase), totalSize,
-                   PAGE_NOACCESS, &oldProt);
+    VirtualProtect(reinterpret_cast<void *>(pageBase), totalSize, PAGE_NOACCESS,
+                   &oldProt);
     monitor->ranges.back().originalProt = static_cast<int>(oldProt);
 #else
     // We can't easily query old protection on POSIX, so assume RW
@@ -240,8 +244,8 @@ std::string NativeMemoryAccessMonitor::enable(
   // On macOS ARM64, PROT_NONE writes raise SIGBUS, not SIGSEGV
   monitor->segvHandlerId = internal::registerHandler(
       ExceptionType::AccessViolation, monitorSegvHandler);
-  monitor->busHandlerId = internal::registerHandler(
-      ExceptionType::BusError, monitorSegvHandler);
+  monitor->busHandlerId =
+      internal::registerHandler(ExceptionType::BusError, monitorSegvHandler);
 
   g_monitors[monitor->id] = monitor;
   return toHexAddr(monitor->id);

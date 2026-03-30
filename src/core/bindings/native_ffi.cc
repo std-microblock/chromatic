@@ -77,8 +77,7 @@ struct CallbackInfo {
 std::mutex callbackMutex;
 std::unordered_map<uint64_t, CallbackInfo *> callbacks;
 
-void callbackHandler(ffi_cif *cif, void *ret, void **args,
-                     void *userData) {
+void callbackHandler(ffi_cif *cif, void *ret, void **args, void *userData) {
   auto *info = static_cast<CallbackInfo *>(userData);
 
   // Serialize arguments to string vector
@@ -145,7 +144,7 @@ std::string NativeFFI::callFunction(const std::string &address,
   ffi_abi ffiAbi = getFFIAbi(abi);
 
   if (ffi_prep_cif(&cif, ffiAbi, static_cast<unsigned>(nargs), retFfiType,
-                    ffiArgTypes.data()) != FFI_OK) {
+                   ffiArgTypes.data()) != FFI_OK) {
     throw std::runtime_error("ffi_prep_cif failed");
   }
 
@@ -211,14 +210,14 @@ std::string NativeFFI::callFunction(const std::string &address,
     return std::to_string(retVal.s64);
   if (retType == "uint64" || retType == "ulong")
     return std::to_string(retVal.u64);
-  return std::to_string(static_cast<int64_t>(static_cast<int32_t>(
-      retVal.u64 & 0xFFFFFFFF)));
+  return std::to_string(
+      static_cast<int64_t>(static_cast<int32_t>(retVal.u64 & 0xFFFFFFFF)));
 }
 
-std::string NativeFFI::createCallback(std::function<std::string(std::vector<std::string>)> handler,
-                                      const std::string &retType,
-                                      const std::vector<std::string> &argTypes,
-                                      const std::string &abi) {
+std::string NativeFFI::createCallback(
+    std::function<std::string(std::vector<std::string>)> handler,
+    const std::string &retType, const std::vector<std::string> &argTypes,
+    const std::string &abi) {
   size_t nargs = argTypes.size();
 
   auto *info = new CallbackInfo();
@@ -231,7 +230,7 @@ std::string NativeFFI::createCallback(std::function<std::string(std::vector<std:
 
   ffi_abi ffiAbi = getFFIAbi(abi);
   if (ffi_prep_cif(&info->cif, ffiAbi, static_cast<unsigned>(nargs),
-                    info->retType, info->argTypes.data()) != FFI_OK) {
+                   info->retType, info->argTypes.data()) != FFI_OK) {
     delete info;
     throw std::runtime_error("ffi_prep_cif failed for callback");
   }

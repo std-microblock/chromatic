@@ -10,7 +10,8 @@ TEST_F(ChromaticTest, Signal_SoftwareBreakpoint_Basic) {
   std::string code = R"(
     (() => {
       let hitCount = 0;
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
 
       const bp = SoftwareBreakpoint.set(target, () => {
         hitCount++;
@@ -37,7 +38,8 @@ TEST_F(ChromaticTest, Signal_SoftwareBreakpoint_OriginalReturnValue) {
   std::string code = R"(
     (() => {
       let entered = false;
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
 
       const bp = SoftwareBreakpoint.set(target, () => {
         entered = true;
@@ -61,8 +63,10 @@ TEST_F(ChromaticTest, Signal_SoftwareBreakpoint_MultipleBPs) {
       let addCount = 0;
       let mulCount = 0;
 
-      const addTarget = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
-      const mulTarget = ptr(')" + ptrHex((void *)&chromatic_test_mul) + R"(');
+      const addTarget = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
+      const mulTarget = ptr(')" +
+                     ptrHex((void *)&chromatic_test_mul) + R"(');
 
       const bp1 = SoftwareBreakpoint.set(addTarget, () => { addCount++; });
       const bp2 = SoftwareBreakpoint.set(mulTarget, () => { mulCount++; });
@@ -94,7 +98,8 @@ TEST_F(ChromaticTest, Signal_SoftwareBreakpoint_RemoveAll) {
   std::string code = R"(
     (() => {
       let count = 0;
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_sub) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_sub) + R"(');
 
       SoftwareBreakpoint.set(target, () => { count++; });
 
@@ -116,7 +121,8 @@ TEST_F(ChromaticTest, Signal_SoftwareBreakpoint_ResetAfterRemove) {
   std::string code = R"(
     (() => {
       let count = 0;
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_sub) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_sub) + R"(');
       const fn = new NativeFunction(target, 'int', ['int', 'int']);
 
       const bp1 = SoftwareBreakpoint.set(target, () => { count++; });
@@ -140,7 +146,8 @@ TEST_F(ChromaticTest, Signal_SoftwareBreakpoint_DuplicateSetThrows) {
   SKIP_SIGNAL();
   std::string code = R"(
     (() => {
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
 
       const bp = SoftwareBreakpoint.set(target, () => {});
 
@@ -164,9 +171,12 @@ TEST_F(ChromaticTest, Signal_SoftwareBreakpoint_AllThreeFunctions) {
     (() => {
       let addHit = 0, mulHit = 0, subHit = 0;
 
-      const addTarget = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
-      const mulTarget = ptr(')" + ptrHex((void *)&chromatic_test_mul) + R"(');
-      const subTarget = ptr(')" + ptrHex((void *)&chromatic_test_sub) + R"(');
+      const addTarget = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
+      const mulTarget = ptr(')" +
+                     ptrHex((void *)&chromatic_test_mul) + R"(');
+      const subTarget = ptr(')" +
+                     ptrHex((void *)&chromatic_test_sub) + R"(');
 
       const bp1 = SoftwareBreakpoint.set(addTarget, () => { addHit++; });
       const bp2 = SoftwareBreakpoint.set(mulTarget, () => { mulHit++; });
@@ -205,7 +215,8 @@ TEST_F(ChromaticTest, Signal_SoftwareBreakpoint_RapidHits) {
   std::string code = R"(
     (() => {
       let hitCount = 0;
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
       const fn = new NativeFunction(target, 'int', ['int', 'int']);
 
       const bp = SoftwareBreakpoint.set(target, () => { hitCount++; });
@@ -231,7 +242,8 @@ TEST_F(ChromaticTest, Signal_SoftwareBreakpoint_RemoveIdempotent) {
   // Calling remove() multiple times should not crash
   std::string code = R"(
     (() => {
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
       const bp = SoftwareBreakpoint.set(target, () => {});
       bp.remove();
       bp.remove(); // second remove — should be a no-op
@@ -295,7 +307,8 @@ TEST_F(ChromaticTest, Signal_HardwareBreakpoint_ExecuteHit) {
       if (HardwareBreakpoint.maxBreakpoints === 0) return; // skip unsupported
 
       let hitCount = 0;
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_mul) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_mul) + R"(');
 
       const bp = HardwareBreakpoint.set(target, 'execute', 1, () => {
         hitCount++;
@@ -544,7 +557,8 @@ TEST_F(ChromaticTest, Signal_HardwareBreakpoint_ExecuteReturnValuePreserved) {
     (() => {
       if (HardwareBreakpoint.maxBreakpoints === 0) return;
 
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
       let entered = false;
 
       const bp = HardwareBreakpoint.set(target, 'execute', 1, () => {
@@ -570,8 +584,10 @@ TEST_F(ChromaticTest, Signal_HardwareBreakpoint_MultipleExecuteSlots) {
       if (HardwareBreakpoint.maxBreakpoints < 2) return;
 
       let addHit = 0, mulHit = 0;
-      const addTarget = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
-      const mulTarget = ptr(')" + ptrHex((void *)&chromatic_test_mul) + R"(');
+      const addTarget = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
+      const mulTarget = ptr(')" +
+                     ptrHex((void *)&chromatic_test_mul) + R"(');
 
       const bp1 = HardwareBreakpoint.set(addTarget, 'execute', 1, () => { addHit++; });
       const bp2 = HardwareBreakpoint.set(mulTarget, 'execute', 1, () => { mulHit++; });

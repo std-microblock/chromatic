@@ -60,9 +60,9 @@ void makeWritableAndPatch(void *addr, const uint8_t *data, size_t len) {
   uintptr_t pageStart = reinterpret_cast<uintptr_t>(addr) & ~(pageSize - 1);
   size_t totalSize = (reinterpret_cast<uintptr_t>(addr) + len) - pageStart;
 
-  kern_return_t kr = vm_protect(
-      mach_task_self(), static_cast<vm_address_t>(pageStart), totalSize, FALSE,
-      VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+  kern_return_t kr =
+      vm_protect(mach_task_self(), static_cast<vm_address_t>(pageStart),
+                 totalSize, FALSE, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
   if (kr != KERN_SUCCESS)
     throw std::runtime_error("vm_protect(RW|COPY) failed: " +
                              std::to_string(kr));

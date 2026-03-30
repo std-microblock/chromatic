@@ -1,6 +1,6 @@
 // test_script_lifecycle.cc — ScriptLifecycle (on_dispose) tests
-#include "test_common.h"
 #include "core/bindings/script_lifecycle.h"
+#include "test_common.h"
 
 TEST_F(ChromaticTest, ScriptLifecycle_OnDisposeCalledOnReset) {
   // Use C++ API to register a dispose callback, then call reset()
@@ -57,8 +57,10 @@ TEST_F(ChromaticTest, ScriptLifecycle_MultipleCallbacks) {
 TEST_F(ChromaticTest, ScriptLifecycle_RemoveCallback) {
   int callCount = 0;
 
-  auto id1 = chromatic::js::ScriptLifecycle::onDispose([&]() { callCount += 1; });
-  auto id2 = chromatic::js::ScriptLifecycle::onDispose([&]() { callCount += 10; });
+  auto id1 =
+      chromatic::js::ScriptLifecycle::onDispose([&]() { callCount += 1; });
+  auto id2 =
+      chromatic::js::ScriptLifecycle::onDispose([&]() { callCount += 10; });
 
   // Remove the first callback
   chromatic::js::ScriptLifecycle::removeDisposeCallback(id1);

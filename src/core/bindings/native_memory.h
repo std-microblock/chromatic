@@ -4,8 +4,7 @@
 #include <vector>
 
 namespace async_simple::coro {
-template <typename T>
-class Lazy;
+template <typename T> class Lazy;
 }
 
 namespace chromatic::js {
@@ -20,7 +19,8 @@ struct NativeMemory {
   /// Read `size` bytes from `address` (hex string), return hex-encoded data
   static std::string readMemory(const std::string &address, int size);
 
-  /// Like readMemory but returns empty string on access fault instead of crashing
+  /// Like readMemory but returns empty string on access fault instead of
+  /// crashing
   static std::string safeReadMemory(const std::string &address, int size);
 
   /// Write hex-encoded `hexData` to `address`

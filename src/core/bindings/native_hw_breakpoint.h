@@ -12,8 +12,7 @@ struct NativeHardwareBreakpoint {
   /// onHit: callback receiving cpuContext pointer (hex)
   /// Returns breakpointId (hex).
   static std::string set(const std::string &address, const std::string &type,
-                          int size,
-                          std::function<void(std::string)> onHit);
+                         int size, std::function<void(std::string)> onHit);
 
   /// Remove a breakpoint by ID.
   static void remove(const std::string &breakpointId);

@@ -20,9 +20,15 @@ bool shouldSkipSignalTests() { return g_skipSignalTests; }
 #define CHROMATIC_NOINLINE
 #endif
 
-extern "C" CHROMATIC_NOINLINE int chromatic_test_add(int a, int b) { return a + b; }
-extern "C" CHROMATIC_NOINLINE int chromatic_test_mul(int a, int b) { return a * b; }
-extern "C" CHROMATIC_NOINLINE int chromatic_test_sub(int a, int b) { return a - b; }
+extern "C" CHROMATIC_NOINLINE int chromatic_test_add(int a, int b) {
+  return a + b;
+}
+extern "C" CHROMATIC_NOINLINE int chromatic_test_mul(int a, int b) {
+  return a * b;
+}
+extern "C" CHROMATIC_NOINLINE int chromatic_test_sub(int a, int b) {
+  return a - b;
+}
 
 static int g_side_effect = 0;
 extern "C" void chromatic_test_set_global(int v) { g_side_effect = v; }

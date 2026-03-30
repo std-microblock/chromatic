@@ -19,11 +19,9 @@ struct NativeMemoryAccessMonitor {
   /// and the access is recorded.
   /// onAccess fires with (address, pageBase, operation, rangeIndex).
   /// Returns monitorId (hex).
-  static std::string
-  enable(const std::vector<std::string> &addresses,
-         const std::vector<int> &sizes,
-         std::function<void(std::string, std::string, std::string, int)>
-             onAccess);
+  static std::string enable(
+      const std::vector<std::string> &addresses, const std::vector<int> &sizes,
+      std::function<void(std::string, std::string, std::string, int)> onAccess);
 
   /// Disable monitoring for a specific monitor.
   static void disable(const std::string &monitorId);

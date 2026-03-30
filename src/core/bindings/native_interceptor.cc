@@ -28,8 +28,8 @@ std::string toHexAddr(uint64_t addr) {
 
 struct HookEntry {
   uint64_t target;
-  void *trampolineCode;     // asmjit-managed trampoline
-  void *relocatedCode;      // asmjit-managed relocated original
+  void *trampolineCode; // asmjit-managed trampoline
+  void *relocatedCode;  // asmjit-managed relocated original
   std::vector<uint8_t> originalBytes;
   size_t patchSize;
   std::function<void(std::string)> onEnter;
@@ -46,7 +46,7 @@ std::unordered_map<uint64_t, HookEntry *> hooksByTarget;
 // Catches all exceptions to prevent crashes.
 
 extern "C" void chromatic_interceptor_dispatch(void *cpuContext,
-                                                void *hookEntryPtr) {
+                                               void *hookEntryPtr) {
   auto *entry = static_cast<HookEntry *>(hookEntryPtr);
   if (!entry)
     return;
@@ -65,7 +65,7 @@ extern "C" void chromatic_interceptor_dispatch(void *cpuContext,
 }
 
 extern "C" void chromatic_interceptor_dispatch_leave(void *cpuContext,
-                                                      void *hookEntryPtr) {
+                                                     void *hookEntryPtr) {
   auto *entry = static_cast<HookEntry *>(hookEntryPtr);
   if (!entry)
     return;
@@ -87,9 +87,10 @@ extern "C" void chromatic_interceptor_dispatch_leave(void *cpuContext,
 
 namespace chromatic::js {
 
-std::string NativeInterceptor::attach(const std::string &targetStr,
-                                       std::function<void(std::string)> onEnter,
-                                       std::function<void(std::string)> onLeave) {
+std::string
+NativeInterceptor::attach(const std::string &targetStr,
+                          std::function<void(std::string)> onEnter,
+                          std::function<void(std::string)> onLeave) {
   uint64_t target = parseHexAddr(targetStr);
 
   std::lock_guard<std::mutex> lock(hookMutex);
@@ -111,8 +112,8 @@ std::string NativeInterceptor::attach(const std::string &targetStr,
   // 2. Build relocated code (copies original instructions + jump-back)
   size_t bytesConsumed = 0;
   try {
-    entry->relocatedCode =
-        internal::buildRelocatedCode(target, internal::PATCH_SIZE, bytesConsumed);
+    entry->relocatedCode = internal::buildRelocatedCode(
+        target, internal::PATCH_SIZE, bytesConsumed);
   } catch (...) {
     delete entry;
     throw;
@@ -158,8 +159,7 @@ void NativeInterceptor::detach(const std::string &hookIdStr) {
 
   // Restore original bytes
   internal::makeWritableAndPatch(reinterpret_cast<void *>(entry->target),
-                                 entry->originalBytes.data(),
-                                 entry->patchSize);
+                                 entry->originalBytes.data(), entry->patchSize);
 
   // Release asmjit-managed code
   internal::releaseCode(entry->trampolineCode);
@@ -186,7 +186,7 @@ void NativeInterceptor::detachAll() {
 }
 
 std::string NativeInterceptor::replace(const std::string &targetStr,
-                                        const std::string &replacementStr) {
+                                       const std::string &replacementStr) {
   uint64_t target = parseHexAddr(targetStr);
   uint64_t replacement = parseHexAddr(replacementStr);
 
@@ -208,8 +208,8 @@ std::string NativeInterceptor::replace(const std::string &targetStr,
   // Build relocated code (= trampoline to call original)
   size_t bytesConsumed = 0;
   try {
-    entry->relocatedCode =
-        internal::buildRelocatedCode(target, internal::PATCH_SIZE, bytesConsumed);
+    entry->relocatedCode = internal::buildRelocatedCode(
+        target, internal::PATCH_SIZE, bytesConsumed);
   } catch (...) {
     delete entry;
     throw;
@@ -238,8 +238,7 @@ void NativeInterceptor::revert(const std::string &targetStr) {
 
   auto *entry = it->second;
   internal::makeWritableAndPatch(reinterpret_cast<void *>(entry->target),
-                                 entry->originalBytes.data(),
-                                 entry->patchSize);
+                                 entry->originalBytes.data(), entry->patchSize);
 
   internal::releaseCode(entry->trampolineCode);
   internal::releaseCode(entry->relocatedCode);

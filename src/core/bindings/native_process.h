@@ -1,8 +1,8 @@
 #pragma once
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
-#include <cstdint>
 namespace chromatic::js {
 
 struct SegmentInfo {
@@ -15,7 +15,8 @@ struct ModuleInfo {
   std::string base; // hex address
   int size;
   std::string path;
-  std::vector<SegmentInfo> segments; // individual mapped regions (not exposed to JS)
+  std::vector<SegmentInfo>
+      segments; // individual mapped regions (not exposed to JS)
 };
 
 struct RangeInfo {
@@ -56,17 +57,20 @@ struct NativeProcess {
   /// Returns vector of memory ranges matching protection
   static std::vector<RangeInfo> enumerateRanges(const std::string &protection);
 
-  /// Find export address by module and export name. Returns hex address or "0x0".
+  /// Find export address by module and export name. Returns hex address or
+  /// "0x0".
   static std::string findExportByName(const std::string &moduleName,
                                       const std::string &exportName);
 
   /// Find module containing address, or nullopt
-  static std::optional<ModuleInfo> findModuleByAddress(const std::string &address);
+  static std::optional<ModuleInfo>
+  findModuleByAddress(const std::string &address);
 
   /// Find module by name, or nullopt
   static std::optional<ModuleInfo> findModuleByName(const std::string &name);
 
   /// Enumerate exports of a module
-  static std::vector<ExportInfo> enumerateExports(const std::string &moduleName);
+  static std::vector<ExportInfo>
+  enumerateExports(const std::string &moduleName);
 };
 } // namespace chromatic::js

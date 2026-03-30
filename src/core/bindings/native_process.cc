@@ -4,9 +4,9 @@
 #include <sstream>
 
 #ifdef CHROMATIC_WINDOWS
-#include <windows.h>
-#include <psapi.h>
 #include <dbghelp.h>
+#include <psapi.h>
+#include <windows.h>
 #else
 #include <dlfcn.h>
 #include <pthread.h>
@@ -113,8 +113,7 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
       MODULEINFO modInfo;
       char modName[MAX_PATH];
 
-      if (GetModuleInformation(hProcess, hMods[i], &modInfo,
-                               sizeof(modInfo)) &&
+      if (GetModuleInformation(hProcess, hMods[i], &modInfo, sizeof(modInfo)) &&
           GetModuleFileNameExA(hProcess, hMods[i], modName, sizeof(modName))) {
         std::string fullPath = modName;
         std::string name = fullPath;
@@ -122,11 +121,9 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
         if (pos != std::string::npos)
           name = name.substr(pos + 1);
 
-        result.push_back({
-            name,
-            toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
-            static_cast<int>(modInfo.SizeOfImage),
-            fullPath});
+        result.push_back(
+            {name, toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
+             static_cast<int>(modInfo.SizeOfImage), fullPath});
       }
     }
   }
@@ -162,11 +159,8 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
     if (pos != std::string::npos)
       name = name.substr(pos + 1);
 
-    result.push_back({
-        name,
-        toHexAddr(reinterpret_cast<uint64_t>(header)),
-        static_cast<int>(imageSize),
-        fullPath});
+    result.push_back({name, toHexAddr(reinterpret_cast<uint64_t>(header)),
+                      static_cast<int>(imageSize), fullPath});
   }
 
 #elif defined(CHROMATIC_LINUX) || defined(CHROMATIC_ANDROID)
@@ -212,26 +206,24 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
           auto pos = name.find_last_of('/');
           if (pos != std::string::npos)
             name = name.substr(pos + 1);
-          modules.push_back({name, pathStr, start, end, {{start, end - start}}});
+          modules.push_back(
+              {name, pathStr, start, end, {{start, end - start}}});
         }
       }
     }
   }
 
   for (const auto &m : modules) {
-    result.push_back({
-        m.name,
-        toHexAddr(m.base),
-        static_cast<int>(m.end - m.base),
-        m.path,
-        m.segments});
+    result.push_back({m.name, toHexAddr(m.base),
+                      static_cast<int>(m.end - m.base), m.path, m.segments});
   }
 #endif
 
   return result;
 }
 
-std::vector<RangeInfo> NativeProcess::enumerateRanges(const std::string &protection) {
+std::vector<RangeInfo>
+NativeProcess::enumerateRanges(const std::string &protection) {
   std::vector<RangeInfo> result;
 
   auto matchesProt = [&](const std::string &rangeProt) -> bool {
@@ -272,11 +264,9 @@ std::vector<RangeInfo> NativeProcess::enumerateRanges(const std::string &protect
       }
 
       if (matchesProt(prot)) {
-        result.push_back({
-            toHexAddr(reinterpret_cast<uint64_t>(mbi.BaseAddress)),
-            static_cast<int>(mbi.RegionSize),
-            prot,
-            ""});
+        result.push_back(
+            {toHexAddr(reinterpret_cast<uint64_t>(mbi.BaseAddress)),
+             static_cast<int>(mbi.RegionSize), prot, ""});
       }
     }
     addr += mbi.RegionSize;
@@ -293,8 +283,8 @@ std::vector<RangeInfo> NativeProcess::enumerateRanges(const std::string &protect
     char perms[5];
     char pathname[512] = {0};
 
-    if (sscanf(line.c_str(), "%lx-%lx %4s %*x %*x:%*x %*lu %511s", &start,
-               &end, perms, pathname) >= 3) {
+    if (sscanf(line.c_str(), "%lx-%lx %4s %*x %*x:%*x %*lu %511s", &start, &end,
+               perms, pathname) >= 3) {
       std::string prot;
       prot += (perms[0] == 'r') ? 'r' : '-';
       prot += (perms[1] == 'w') ? 'w' : '-';
@@ -304,11 +294,8 @@ std::vector<RangeInfo> NativeProcess::enumerateRanges(const std::string &protect
         std::string filePath;
         if (pathname[0] == '/')
           filePath = pathname;
-        result.push_back({
-            toHexAddr(start),
-            static_cast<int>(end - start),
-            prot,
-            filePath});
+        result.push_back(
+            {toHexAddr(start), static_cast<int>(end - start), prot, filePath});
       }
     }
   }
@@ -336,11 +323,8 @@ std::vector<RangeInfo> NativeProcess::enumerateRanges(const std::string &protect
     prot += (info.protection & VM_PROT_EXECUTE) ? 'x' : '-';
 
     if (matchesProt(prot)) {
-      result.push_back({
-          toHexAddr(address),
-          static_cast<int>(vmsize),
-          prot,
-          ""});
+      result.push_back(
+          {toHexAddr(address), static_cast<int>(vmsize), prot, ""});
     }
 
     address += vmsize;
@@ -392,7 +376,8 @@ std::string NativeProcess::findExportByName(const std::string &moduleName,
 #endif
 }
 
-std::optional<ModuleInfo> NativeProcess::findModuleByAddress(const std::string &address) {
+std::optional<ModuleInfo>
+NativeProcess::findModuleByAddress(const std::string &address) {
   uint64_t addr = parseHexAddr(address);
 
 #ifdef CHROMATIC_WINDOWS
@@ -416,11 +401,9 @@ std::optional<ModuleInfo> NativeProcess::findModuleByAddress(const std::string &
   if (pos != std::string::npos)
     name = name.substr(pos + 1);
 
-  return ModuleInfo{
-      name,
-      toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
-      static_cast<int>(modInfo.SizeOfImage),
-      fullPath};
+  return ModuleInfo{name,
+                    toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
+                    static_cast<int>(modInfo.SizeOfImage), fullPath};
 
 #elif defined(CHROMATIC_DARWIN)
   uint32_t count = _dyld_image_count();
@@ -454,11 +437,8 @@ std::optional<ModuleInfo> NativeProcess::findModuleByAddress(const std::string &
       if (pos != std::string::npos)
         name = name.substr(pos + 1);
 
-      return ModuleInfo{
-          name,
-          toHexAddr(base),
-          static_cast<int>(imageSize),
-          fullPath};
+      return ModuleInfo{name, toHexAddr(base), static_cast<int>(imageSize),
+                        fullPath};
     }
   }
   return std::nullopt;
@@ -481,7 +461,8 @@ std::optional<ModuleInfo> NativeProcess::findModuleByAddress(const std::string &
 #endif
 }
 
-std::optional<ModuleInfo> NativeProcess::findModuleByName(const std::string &name) {
+std::optional<ModuleInfo>
+NativeProcess::findModuleByName(const std::string &name) {
   auto modules = enumerateModules();
   for (const auto &m : modules) {
     if (m.name == name)
@@ -490,11 +471,13 @@ std::optional<ModuleInfo> NativeProcess::findModuleByName(const std::string &nam
   return std::nullopt;
 }
 
-std::vector<ExportInfo> NativeProcess::enumerateExports(const std::string &moduleName) {
+std::vector<ExportInfo>
+NativeProcess::enumerateExports(const std::string &moduleName) {
   std::vector<ExportInfo> result;
 
 #ifdef CHROMATIC_WINDOWS
-  HMODULE hMod = GetModuleHandleA(moduleName.empty() ? nullptr : moduleName.c_str());
+  HMODULE hMod =
+      GetModuleHandleA(moduleName.empty() ? nullptr : moduleName.c_str());
   if (!hMod)
     return result;
 
@@ -514,10 +497,10 @@ std::vector<ExportInfo> NativeProcess::enumerateExports(const std::string &modul
       reinterpret_cast<uint8_t *>(hMod) + exportDir.VirtualAddress);
   auto names = reinterpret_cast<DWORD *>(reinterpret_cast<uint8_t *>(hMod) +
                                          exports->AddressOfNames);
-  auto functions = reinterpret_cast<DWORD *>(
-      reinterpret_cast<uint8_t *>(hMod) + exports->AddressOfFunctions);
-  auto ordinals = reinterpret_cast<WORD *>(
-      reinterpret_cast<uint8_t *>(hMod) + exports->AddressOfNameOrdinals);
+  auto functions = reinterpret_cast<DWORD *>(reinterpret_cast<uint8_t *>(hMod) +
+                                             exports->AddressOfFunctions);
+  auto ordinals = reinterpret_cast<WORD *>(reinterpret_cast<uint8_t *>(hMod) +
+                                           exports->AddressOfNameOrdinals);
 
   for (DWORD i = 0; i < exports->NumberOfNames; i++) {
     auto expName = reinterpret_cast<const char *>(
@@ -556,11 +539,10 @@ std::vector<ExportInfo> NativeProcess::enumerateExports(const std::string &modul
 
             for (uint32_t j = 0; j < header64->ncmds; j++) {
               if (cmd->cmd == LC_SYMTAB) {
-                symtab =
-                    reinterpret_cast<const struct symtab_command *>(cmd);
+                symtab = reinterpret_cast<const struct symtab_command *>(cmd);
               } else if (cmd->cmd == LC_SEGMENT_64) {
-                auto seg = reinterpret_cast<
-                    const struct segment_command_64 *>(cmd);
+                auto seg =
+                    reinterpret_cast<const struct segment_command_64 *>(cmd);
                 if (strcmp(seg->segname, SEG_LINKEDIT) == 0)
                   linkedit = seg;
                 else if (strcmp(seg->segname, SEG_TEXT) == 0)
@@ -581,7 +563,8 @@ std::vector<ExportInfo> NativeProcess::enumerateExports(const std::string &modul
                   fileOff);
 
               for (uint32_t s = 0; s < symtab->nsyms; s++) {
-                if ((syms[s].n_type & N_EXT) && (syms[s].n_type & N_TYPE) == N_SECT) {
+                if ((syms[s].n_type & N_EXT) &&
+                    (syms[s].n_type & N_TYPE) == N_SECT) {
                   const char *symName = strs + syms[s].n_un.n_strx;
                   if (symName[0] == '_')
                     symName++;
@@ -635,10 +618,10 @@ std::vector<ExportInfo> NativeProcess::enumerateExports(const std::string &modul
 
         const ElfW(Sym) *symtab = nullptr;
         const char *strtab = nullptr;
-        size_t nchain = 0;          // from DT_HASH
+        size_t nchain = 0; // from DT_HASH
         const uint32_t *gnuBuckets = nullptr;
         size_t gnuNbuckets = 0;
-        uint32_t gnuSymndx = 0;     // from DT_GNU_HASH
+        uint32_t gnuSymndx = 0; // from DT_GNU_HASH
 
         for (const ElfW(Dyn) *d = dyn; d->d_tag != DT_NULL; d++) {
           switch (d->d_tag) {

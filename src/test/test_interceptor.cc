@@ -5,7 +5,8 @@ TEST_F(ChromaticTest, Interceptor_AttachDetach) {
   std::string code = R"(
     (() => {
       let enterCount = 0;
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
       const listener = Interceptor.attach(target, {
         onEnter(args) { enterCount++; }
       });
@@ -28,8 +29,10 @@ TEST_F(ChromaticTest, Interceptor_MultipleHooks) {
       let addCount = 0;
       let mulCount = 0;
 
-      const addTarget = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
-      const mulTarget = ptr(')" + ptrHex((void *)&chromatic_test_mul) + R"(');
+      const addTarget = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
+      const mulTarget = ptr(')" +
+                     ptrHex((void *)&chromatic_test_mul) + R"(');
 
       const listener1 = Interceptor.attach(addTarget, {
         onEnter(args) { addCount++; }
@@ -64,7 +67,8 @@ TEST_F(ChromaticTest, Interceptor_OriginalReturnValue) {
   std::string code = R"(
     (() => {
       let entered = false;
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
       const listener = Interceptor.attach(target, {
         onEnter(args) { entered = true; }
       });
@@ -82,7 +86,8 @@ TEST_F(ChromaticTest, Interceptor_ReattachAfterDetach) {
   std::string code = R"(
     (() => {
       let count = 0;
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_sub) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_sub) + R"(');
       const fn = new NativeFunction(target, 'int', ['int', 'int']);
 
       const listener1 = Interceptor.attach(target, {
@@ -109,7 +114,8 @@ TEST_F(ChromaticTest, Interceptor_ReattachAfterDetach) {
 TEST_F(ChromaticTest, Interceptor_OnEnterThrowNoCrash) {
   std::string code = R"(
     (() => {
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
       const listener = Interceptor.attach(target, {
         onEnter(args) {
           throw new Error('intentional throw in onEnter');
@@ -128,8 +134,10 @@ TEST_F(ChromaticTest, Interceptor_DetachAll) {
   std::string code = R"(
     (() => {
       let count1 = 0, count2 = 0;
-      const target1 = ptr(')" + ptrHex((void *)&chromatic_test_add) + R"(');
-      const target2 = ptr(')" + ptrHex((void *)&chromatic_test_mul) + R"(');
+      const target1 = ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) + R"(');
+      const target2 = ptr(')" +
+                     ptrHex((void *)&chromatic_test_mul) + R"(');
 
       Interceptor.attach(target1, { onEnter(args) { count1++; } });
       Interceptor.attach(target2, { onEnter(args) { count2++; } });
@@ -157,7 +165,8 @@ TEST_F(ChromaticTest, ContextDispose_AutoDetachHooks) {
   // Verify that detachAll properly cleans up and the function works after
   std::string code = R"(
     (() => {
-      const target = ptr(')" + ptrHex((void *)&chromatic_test_sub) + R"(');
+      const target = ptr(')" +
+                     ptrHex((void *)&chromatic_test_sub) + R"(');
       Interceptor.attach(target, {
         onEnter(args) {}
       });

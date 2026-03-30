@@ -142,8 +142,7 @@ ParsedPattern parsePattern(const std::string &pattern) {
       p.bytes.push_back(0);
       p.mask.push_back(false);
     } else {
-      p.bytes.push_back(
-          static_cast<uint8_t>(std::stoi(token, nullptr, 16)));
+      p.bytes.push_back(static_cast<uint8_t>(std::stoi(token, nullptr, 16)));
       p.mask.push_back(true);
     }
   }
@@ -154,8 +153,7 @@ ParsedPattern parsePattern(const std::string &pattern) {
 // Build bad-character shift table.  Wildcard positions are treated as
 // "match anything", so they must not restrict the shift value.
 std::vector<chromatic::js::ScanMatch>
-bmhScan(const uint8_t *haystack, size_t haystackLen,
-         const ParsedPattern &pat) {
+bmhScan(const uint8_t *haystack, size_t haystackLen, const ParsedPattern &pat) {
   std::vector<chromatic::js::ScanMatch> results;
   const size_t m = pat.bytes.size();
   if (m == 0 || m > haystackLen)
@@ -208,9 +206,8 @@ bmhScan(const uint8_t *haystack, size_t haystackLen,
       }
     }
     if (match) {
-      results.push_back(
-          {toHexAddress(reinterpret_cast<uint64_t>(haystack + i)),
-           static_cast<int>(m)});
+      results.push_back({toHexAddress(reinterpret_cast<uint64_t>(haystack + i)),
+                         static_cast<int>(m)});
       // Advance by 1 to find overlapping matches
       i += 1;
     } else {
@@ -233,7 +230,7 @@ std::string NativeMemory::safeReadMemory(const std::string &address, int size) {
 #ifdef CHROMATIC_WINDOWS
   auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
   std::string result;
-  
+
   auto readMemory = [&]() -> bool {
     __try {
       result.resize(size * 2);
@@ -245,7 +242,7 @@ std::string NativeMemory::safeReadMemory(const std::string &address, int size) {
       return false;
     }
   };
-  
+
   return readMemory() ? result : "";
 #else
   auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
@@ -347,11 +344,11 @@ void NativeMemory::patchCode(const std::string &address,
   uintptr_t pageStart = reinterpret_cast<uintptr_t>(addr) & ~(pageSize - 1);
   size_t totalSize = (reinterpret_cast<uintptr_t>(addr) + len) - pageStart;
 
-  vm_protect(mach_task_self(), static_cast<vm_address_t>(pageStart),
-             totalSize, FALSE, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
+  vm_protect(mach_task_self(), static_cast<vm_address_t>(pageStart), totalSize,
+             FALSE, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_COPY);
   std::memcpy(addr, bytes.data(), len);
-  vm_protect(mach_task_self(), static_cast<vm_address_t>(pageStart),
-             totalSize, FALSE, VM_PROT_READ | VM_PROT_EXECUTE);
+  vm_protect(mach_task_self(), static_cast<vm_address_t>(pageStart), totalSize,
+             FALSE, VM_PROT_READ | VM_PROT_EXECUTE);
   sys_icache_invalidate(addr, len);
 #else
   // Linux/Android
@@ -402,9 +399,8 @@ std::vector<ScanMatch> NativeMemory::scanMemory(const std::string &address,
 }
 
 // ─── scanModule — scan each mapped segment of the module ──────────
-std::vector<ScanMatch>
-NativeMemory::scanModule(const std::string &moduleName,
-                         const std::string &pattern) {
+std::vector<ScanMatch> NativeMemory::scanModule(const std::string &moduleName,
+                                                const std::string &pattern) {
   auto mod = NativeProcess::findModuleByName(moduleName);
   if (!mod)
     throw std::runtime_error("Module not found: " + moduleName);

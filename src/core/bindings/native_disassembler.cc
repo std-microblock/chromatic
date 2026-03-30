@@ -258,7 +258,7 @@ NativeDisassembler::analyzeInstruction(const std::string &address) {
   int size = insn->size;
   cs_free(insn, count);
 
-  return InstructionAnalysis{isBranch, isCall,    isRelative,
+  return InstructionAnalysis{isBranch,          isCall,       isRelative,
                              toHexAddr(target), isPcRelative, size};
 }
 
@@ -320,8 +320,7 @@ NativeDisassembler::findXrefsInModule(const std::string &moduleName,
 
 // ─── findXrefs async variants ─────────────────────────────────────
 async_simple::coro::Lazy<std::vector<XrefResult>>
-NativeDisassembler::findXrefsAsync(const std::string &rangeStart,
-                                   int rangeSize,
+NativeDisassembler::findXrefsAsync(const std::string &rangeStart, int rangeSize,
                                    const std::string &targetAddr) {
   co_return findXrefs(rangeStart, rangeSize, targetAddr);
 }
@@ -333,8 +332,7 @@ NativeDisassembler::findXrefsInModuleAsync(const std::string &moduleName,
 }
 
 // ─── filterInstructions — iterate + JS callback filter ─────────────
-std::vector<InstructionInfo>
-NativeDisassembler::filterInstructions(
+std::vector<InstructionInfo> NativeDisassembler::filterInstructions(
     const std::string &address, int count,
     std::function<bool(InstructionInfo)> filter) {
   uint64_t addr = parseHexAddr(address);

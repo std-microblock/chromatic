@@ -31,8 +31,8 @@ struct BreakpointEntry {
   uint64_t address;
   std::vector<uint8_t> originalBytes;
   size_t originalInsnSize;
-  void *trampolineCode;     // asmjit-managed
-  void *relocatedCode;      // asmjit-managed
+  void *trampolineCode; // asmjit-managed
+  void *relocatedCode;  // asmjit-managed
   std::function<void(std::string)> onHit;
 };
 
@@ -121,15 +121,16 @@ namespace chromatic::js {
 
 namespace cr = ::chromatic::internal; // alias for code_relocator namespace
 
-std::string NativeSoftwareBreakpoint::set(
-    const std::string &addressStr,
-    std::function<void(std::string)> onHit) {
+std::string
+NativeSoftwareBreakpoint::set(const std::string &addressStr,
+                              std::function<void(std::string)> onHit) {
   uint64_t address = parseHexAddr(addressStr);
 
   std::lock_guard<std::mutex> lock(g_bpMutex);
 
   if (g_bpByAddress.count(address))
-    throw std::runtime_error("Software breakpoint already set at " + addressStr);
+    throw std::runtime_error("Software breakpoint already set at " +
+                             addressStr);
 
   ensureHandlerInstalled();
 
@@ -209,8 +210,7 @@ void NativeSoftwareBreakpoint::remove(const std::string &breakpointIdStr) {
 
   // Restore original bytes
   cr::makeWritableAndPatch(reinterpret_cast<void *>(entry->address),
-                                 entry->originalBytes.data(),
-                                 BP_INSN_SIZE);
+                           entry->originalBytes.data(), BP_INSN_SIZE);
 
   // Release JIT code
   cr::releaseCode(entry->trampolineCode);
@@ -228,8 +228,7 @@ void NativeSoftwareBreakpoint::removeAll() {
 
   for (auto &[id, entry] : g_bpById) {
     cr::makeWritableAndPatch(reinterpret_cast<void *>(entry->address),
-                                   entry->originalBytes.data(),
-                                   BP_INSN_SIZE);
+                             entry->originalBytes.data(), BP_INSN_SIZE);
     cr::releaseCode(entry->trampolineCode);
     cr::releaseCode(entry->relocatedCode);
     delete entry;

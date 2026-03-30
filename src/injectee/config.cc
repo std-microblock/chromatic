@@ -28,8 +28,8 @@ EmbeddedConfigData parseEmbeddedConfig() {
   }
 
   if (g_embedded_config.data_size <= 0 || g_embedded_config.data_offset <= 0) {
-    throw std::runtime_error(
-        "Invalid embedded config: no data (was the binary patched by fripack?)");
+    throw std::runtime_error("Invalid embedded config: no data (was the binary "
+                             "patched by fripack?)");
   }
 
   // Read raw data from the struct's offset
@@ -88,9 +88,8 @@ EmbeddedConfigData parseEmbeddedConfig() {
 
   auto result = rfl::json::read<EmbeddedConfigData>(json_str);
   if (!result) {
-    throw std::runtime_error(
-        fmt::format("Failed to parse embedded config JSON: {}",
-                    result.error().what()));
+    throw std::runtime_error(fmt::format(
+        "Failed to parse embedded config JSON: {}", result.error().what()));
   }
 
   return std::move(result.value());

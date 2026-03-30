@@ -54,7 +54,8 @@ void start_file_watcher(const std::string &watch_path) {
     return;
   }
 
-  g_watch_thread = std::make_unique<std::thread>([watch_path, last_write_time]() mutable {
+  g_watch_thread = std::make_unique<std::thread>([watch_path,
+                                                  last_write_time]() mutable {
     fmt::print("[chromatic-injectee] Watching file: {}\n", watch_path);
 
     while (!g_stop_watching) {
@@ -62,7 +63,8 @@ void start_file_watcher(const std::string &watch_path) {
         auto current_time = std::filesystem::last_write_time(watch_path);
 
         if (current_time != last_write_time) {
-          fmt::print("[chromatic-injectee] File change detected, reloading...\n");
+          fmt::print(
+              "[chromatic-injectee] File change detected, reloading...\n");
           last_write_time = current_time;
 
           // Small delay to let editors finish writing
@@ -96,7 +98,8 @@ void start_file_watcher(const std::string &watch_path) {
 }
 
 void injectee_main() {
-  fmt::print("[chromatic-injectee] Library loaded, initializing Chromatic engine\n");
+  fmt::print(
+      "[chromatic-injectee] Library loaded, initializing Chromatic engine\n");
 
   try {
     auto config = chromatic::injectee::parseEmbeddedConfig();
@@ -129,10 +132,9 @@ void injectee_main() {
 
       std::string content = read_file(*config.watch_path);
       if (content.empty()) {
-        fmt::print(
-            stderr,
-            "[chromatic-injectee] Failed to read initial JS from: {}\n",
-            *config.watch_path);
+        fmt::print(stderr,
+                   "[chromatic-injectee] Failed to read initial JS from: {}\n",
+                   *config.watch_path);
         return;
       }
 
@@ -148,8 +150,7 @@ void injectee_main() {
     }
 
     default:
-      fmt::print(stderr,
-                 "[chromatic-injectee] Unknown config mode: {}\n",
+      fmt::print(stderr, "[chromatic-injectee] Unknown config mode: {}\n",
                  static_cast<int32_t>(config.mode));
       return;
     }

@@ -4,7 +4,9 @@
 TEST_F(ChromaticTest, NativeFunction_Call) {
   std::string code = R"(
     (() => {
-      const fn = new NativeFunction(ptr(')" + ptrHex((void *)&chromatic_test_add) + R"('), 'int', ['int', 'int']);
+      const fn = new NativeFunction(ptr(')" +
+                     ptrHex((void *)&chromatic_test_add) +
+                     R"('), 'int', ['int', 'int']);
       const r = fn(3, 4);
       if (r !== 7) throw new Error('expected 7, got ' + r);
     })()
@@ -13,10 +15,13 @@ TEST_F(ChromaticTest, NativeFunction_Call) {
 }
 
 TEST_F(ChromaticTest, NativeFunction_CallMultiple) {
-  std::string code = R"(
+  std::string code =
+      R"(
     (() => {
-      const add = new NativeFunction(ptr(')" + ptrHex((void *)&chromatic_test_add) + R"('), 'int', ['int', 'int']);
-      const mul = new NativeFunction(ptr(')" + ptrHex((void *)&chromatic_test_mul) + R"('), 'int', ['int', 'int']);
+      const add = new NativeFunction(ptr(')" +
+      ptrHex((void *)&chromatic_test_add) + R"('), 'int', ['int', 'int']);
+      const mul = new NativeFunction(ptr(')" +
+      ptrHex((void *)&chromatic_test_mul) + R"('), 'int', ['int', 'int']);
       if (add(10, 20) !== 30) throw new Error('add');
       if (mul(5, 6) !== 30) throw new Error('mul');
     })()

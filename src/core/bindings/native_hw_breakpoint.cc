@@ -121,7 +121,7 @@ extern "C" void chromatic_hwbp_dispatch(void *cpuContext, void *entryPtr) {
 #if defined(CHROMATIC_LINUX) || defined(CHROMATIC_ANDROID)
 
 static int linuxSetHwBp(uint64_t addr, HwBpType type, int bpSize) {
-  struct perf_event_attr pe {};
+  struct perf_event_attr pe{};
   pe.type = PERF_TYPE_BREAKPOINT;
   pe.size = sizeof(pe);
 
@@ -176,7 +176,7 @@ static int findFreeSlot() {
 }
 
 static void darwinSetDebugReg(int slot, uint64_t addr, HwBpType type,
-                               int bpSize) {
+                              int bpSize) {
   thread_t thread = pthread_mach_thread_np(pthread_self());
   x86_debug_state64_t dbg{};
   mach_msg_type_number_t count = x86_DEBUG_STATE64_COUNT;
@@ -295,8 +295,7 @@ static int findFreeSlot() {
   return -1;
 }
 
-static void winSetDebugReg(int slot, uint64_t addr, HwBpType type,
-                            int bpSize) {
+static void winSetDebugReg(int slot, uint64_t addr, HwBpType type, int bpSize) {
   CONTEXT ctx{};
   ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
   HANDLE thread = GetCurrentThread();
@@ -407,8 +406,9 @@ hwBpSigtrapHandler(std::shared_ptr<chromatic::js::ExceptionContext> ctx) {
     thread_t thread = pthread_mach_thread_np(pthread_self());
     x86_debug_state64_t dbg{};
     mach_msg_type_number_t count = x86_DEBUG_STATE64_COUNT;
-    kern_return_t kr = thread_get_state(thread, x86_DEBUG_STATE64,
-                                        reinterpret_cast<thread_state_t>(&dbg), &count);
+    kern_return_t kr =
+        thread_get_state(thread, x86_DEBUG_STATE64,
+                         reinterpret_cast<thread_state_t>(&dbg), &count);
     if (kr == KERN_SUCCESS) {
       uint64_t dr6 = dbg.__dr6;
 
@@ -491,14 +491,14 @@ namespace chromatic::js {
 
 namespace cr = ::chromatic::internal;
 
-std::string NativeHardwareBreakpoint::set(
-    const std::string &addressStr, const std::string &typeStr, int size,
-    std::function<void(std::string)> onHit) {
+std::string
+NativeHardwareBreakpoint::set(const std::string &addressStr,
+                              const std::string &typeStr, int size,
+                              std::function<void(std::string)> onHit) {
 
 #if defined(CHROMATIC_DARWIN) && defined(CHROMATIC_ARM64)
-  throw std::runtime_error(
-      "Hardware breakpoints not supported on macOS ARM64. "
-      "Use SoftwareBreakpoint instead.");
+  throw std::runtime_error("Hardware breakpoints not supported on macOS ARM64. "
+                           "Use SoftwareBreakpoint instead.");
 #else
   uint64_t address = parseHexAddr(addressStr);
   auto type = parseType(typeStr);
@@ -511,8 +511,8 @@ std::string NativeHardwareBreakpoint::set(
 
   int maxBp = platformMaxBreakpoints();
   if (static_cast<int>(g_hwByAddress.size()) >= maxBp)
-    throw std::runtime_error(
-        "Maximum hardware breakpoints reached (" + std::to_string(maxBp) + ")");
+    throw std::runtime_error("Maximum hardware breakpoints reached (" +
+                             std::to_string(maxBp) + ")");
 
   ensureHwHandlerInstalled();
 
@@ -527,8 +527,7 @@ std::string NativeHardwareBreakpoint::set(
   if (type == HwBpType::Execute) {
     size_t bytesConsumed = 0;
     try {
-      entry->relocatedCode =
-          cr::buildRelocatedCode(address, 1, bytesConsumed);
+      entry->relocatedCode = cr::buildRelocatedCode(address, 1, bytesConsumed);
     } catch (...) {
       delete entry;
       throw;

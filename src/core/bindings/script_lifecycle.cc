@@ -1,10 +1,10 @@
 #include "script_lifecycle.h"
 #include <cstdint>
+#include <fmt/core.h>
 #include <mutex>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
-#include <fmt/core.h>
 
 namespace {
 

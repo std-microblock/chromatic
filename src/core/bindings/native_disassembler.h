@@ -4,8 +4,7 @@
 #include <vector>
 
 namespace async_simple::coro {
-template <typename T>
-class Lazy;
+template <typename T> class Lazy;
 }
 
 namespace chromatic::js {
@@ -50,9 +49,9 @@ struct NativeDisassembler {
 
   /// Find all instructions in [rangeStart, rangeStart+rangeSize) that
   /// reference targetAddr (call, branch, or data/PC-relative load).
-  static std::vector<XrefResult>
-  findXrefs(const std::string &rangeStart, int rangeSize,
-            const std::string &targetAddr);
+  static std::vector<XrefResult> findXrefs(const std::string &rangeStart,
+                                           int rangeSize,
+                                           const std::string &targetAddr);
 
   /// Find xrefs within a named module.
   static std::vector<XrefResult>
