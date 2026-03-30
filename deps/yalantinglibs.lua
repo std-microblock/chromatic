@@ -4,16 +4,7 @@ package("cinatra")
     set_description("modern c++(c++20), cross-platform, header-only, easy to use http framework")
     set_license("MIT")
 
-    add_urls("https://github.com/qicosmos/cinatra/archive/refs/tags/$(version).tar.gz",
-             "https://github.com/qicosmos/cinatra.git")
-
-    add_versions("0.9.5", "f21448332f56484af76347a3da30099dcd155d31ac9d3098faf7e9d6cb1e0c34")
-    add_versions("0.9.4", "2b8b4e264f8083674554db55ca137998f02c528730cf9565697234fec9de3378")
-    add_versions("0.9.1", "d1a8018e41caabbda2c380175b632e3c9c10b519727f6b998eda4e3f4ede84bd")
-    add_versions("v0.8.9", "007dc38aceedf42d03a9c05dc9aa6d2f303456ae7ce1100800df7a565b83b510")
-    add_versions("v0.8.0", "4e14d5206408eccb43b3e810d3a1fe228fbc7496ded8a16b041ed12cbcce4479")
-
-    add_patches(">=0.8.9 <=0.9.2", "patches/0.8.9/windows-move.patch", "c913ed0e9044ffc0ced40516245ec0d55262f8eabd30244d9911c3f0427a60f5")
+    add_urls("https://github.com/std-microblock/cinatra.git")
 
     add_configs("ssl", {description = "Enable SSL", default = false, type = "boolean"})
     add_configs("gzip", {description = "Enable GZIP", default = false, type = "boolean"})
@@ -22,7 +13,7 @@ package("cinatra")
     add_configs("aarch64", {description = "Enable aarch64 instruction set (only arm)", default = false, type = "boolean"})
 
     add_deps("asio")
-    add_deps("async_simple", {configs = {aio = false}})
+    add_deps("async_simple 18f3882be354d407af0f0674121dcddaeff36e26", {configs = {aio = false}})
 
     on_check("windows", function (package)
         local vs_toolset = package:toolchain("msvc"):config("vs_toolset")
@@ -74,21 +65,7 @@ package("yalantinglibs")
     set_urls("https://github.com/alibaba/yalantinglibs/archive/refs/tags/$(version).tar.gz",
              "https://github.com/alibaba/yalantinglibs.git")
 
-    add_versions("0.6.0", "798c32a0d25c6306d6ff3d9dbd1c561a41e16cc11bd30b8993c737f6ac0517d9")
-    add_versions("0.5.8", "49b631c191f139ff465b489663a620f3ae24af6baa236cc1e3d96f3ac7506d73")
-    add_versions("0.5.7", "1c1057289e5488f90dd326fd2bb9d3173bad11eb5b06bc0a8bf0fa80857e1cfa")
-    add_versions("0.5.6", "b2656f794af30c5b83952b7c73c2dabf949061ddb6284d18d7f0c0560244b35a")
-    add_versions("0.5.5", "7962579c1414d1ade4fd22316476723d54112c919514bf1e6015a1870e5e68f7")
-    add_versions("0.5.3", "9d24612975d38fa4b4a05bd9f8f5cb65d447365e5eb3661d0eba9701d383523a")
-    add_versions("0.5.2", "e63500b9b84b6efd76bfc375d0972c0376d98067f7a6118bfd9a3048d557f46a")
-    add_versions("0.4.0", "35d88b5e329f88edb702c1c40a67dedb4438898774c96bb6f3f1704ab828257f")
-    add_versions("0.3.11", "1766ca1ec977e2dd56dabdcad3172dc1b79c3bd1acd26ea2de019299fa7e888a")
-    add_versions("0.3.9", "aea6c5c99297f9b875eac8cabdf846b8f8e792bf7ccb3da8e0afda90ea62f00b")
-    add_versions("0.3.8", "a9966687a2ac1ed0b1a001a69e144db4cff4cdf77a5a80c00364e6ea687d3c52")
-    add_versions("0.3.7", "b4258806173f63034aa529913601bc3d90da8a598725c0edf0be1a8c5c6f32b8")
-    add_versions("0.3.6", "92f694ad42537f95535efc648fc5e73e82f840dae4f54524a096050db398214b")
-    add_versions("0.3.4", "dd5edd3f43f23cd4b0614896e6587b61bb38c981dc21c85a54bcc54800d0dfe8")
-    add_versions("0.3.5", "8d382573da01449c4f83fccbbc3bdc08d221651f3fc8b9137eb4fbdb703677c2")
+    add_versions("2026.03.30", "0c98464dd202aaa6275a8da3297719a436b8a51a")
 
     add_configs("ssl", {description = "Enable ssl support", default = false, type = "boolean"})
     add_configs("pmr", {description = "Enable pmr support",  default = false, type = "boolean"})
@@ -98,7 +75,11 @@ package("yalantinglibs")
     add_configs("struct_pack_unportable_optimize", {description = "enable struct_pack optimize(but cost more compile time)",  default = false, type = "boolean"})
 
     add_deps("cmake")
-    add_deps("cinatra", "iguana")
+    add_deps("cinatra d9485603c89d1fbb286f459f4d3dfdf4b44a04df", "iguana", {
+        configs = {
+            ssl = true
+        }
+    })
 
     on_check("windows", function (package)
         local vs_toolset = package:toolchain("msvc"):config("vs_toolset")

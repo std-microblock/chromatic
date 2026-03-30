@@ -3,8 +3,8 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "build"})
 
 set_languages("c++23")
 
-includes("deps/breeze-js.lua")
 includes("deps/yalantinglibs.lua")
+includes("deps/breeze-js.lua")
 
 add_requires("breeze-js-runtime")
 add_requires("capstone", "fmt", "libffi", "asmjit", "gtest")
@@ -21,8 +21,13 @@ elseif is_os("android") then
     add_defines("CHROMATIC_ANDROID")
 end
 
+if is_os("linux") or is_os("android") then
+    add_cxflags("-fPIC")
+    add_ldflags("-fPIC")
+end
+
 -- Architecture defines
-if is_arch("arm64", "aarch64") then
+if is_arch("arm64", "aarch64", "arm64-v8a") then
     add_defines("CHROMATIC_ARM64")
 elseif is_arch("x86_64", "x64") then
     add_defines("CHROMATIC_X64")
@@ -44,7 +49,7 @@ target("chromatic-core")
     -- Platform link libraries
     if is_os("windows") then
         add_syslinks("kernel32", "psapi", "user32", "dbghelp")
-    elseif is_os("linux") or is_os("android") then
+    elseif is_os("linux") then
         add_syslinks("dl", "pthread")
     elseif is_os("macosx") then
         add_syslinks("dl", "pthread")
