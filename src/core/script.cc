@@ -19,7 +19,6 @@ std::string index_js = {(const char *)_binary_index_js_start,
 namespace chromatic::script {
 void runtime::cleanup() {
   // Auto-cleanup all subsystems when the script context is disposed
-  chromatic::js::ScriptLifecycle::removeAllDisposeCallbacks();
   chromatic::js::NativeMemoryAccessMonitor::disableAll();
   chromatic::js::NativeHardwareBreakpoint::removeAll();
   chromatic::js::NativeSoftwareBreakpoint::removeAll();
@@ -30,6 +29,7 @@ void runtime::cleanup() {
 void runtime::reset() {
   // Let JS do its cleanup first via dispose callbacks
   chromatic::js::ScriptLifecycle::_callDisposeCallbacks();
+  context.stop_event_loop_in_time(std::chrono::milliseconds(100));
   // Then native cleanup
   cleanup();
   context.on_bind.clear();
