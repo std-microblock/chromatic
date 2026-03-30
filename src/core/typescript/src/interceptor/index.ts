@@ -9,7 +9,7 @@ import type {
   InvocationReturnValue,
 } from '../types';
 
-const isArm64 = NativeProcess.getArchitecture() === 'arm64';
+const isArm64 = NativeProcess.architecture === 'arm64';
 
 /**
  * Interceptor — Frida-compatible inline hook API.
@@ -38,7 +38,7 @@ export const Interceptor = {
             const idx = parseInt(prop, 10);
             if (!isNaN(idx)) {
               const ctxPtr = new NativePointer(cpuContextPtr);
-              const ptrSize = NativeProcess.getPointerSize();
+              const ptrSize = NativeProcess.pointerSize;
               if (isArm64) {
                 return ctxPtr.add(idx * ptrSize).readPointer();
               } else {
@@ -57,7 +57,7 @@ export const Interceptor = {
             const idx = parseInt(prop, 10);
             if (!isNaN(idx)) {
               const ctxPtr = new NativePointer(cpuContextPtr);
-              const ptrSize = NativeProcess.getPointerSize();
+              const ptrSize = NativeProcess.pointerSize;
               if (isArm64) {
                 ctxPtr.add(idx * ptrSize).writePointer(value);
               } else {
@@ -90,7 +90,7 @@ export const Interceptor = {
       };
 
       const ctxPtr = new NativePointer(cpuContextPtr);
-      const ptrSize = NativeProcess.getPointerSize();
+      const ptrSize = NativeProcess.pointerSize;
 
       const retvalPtr = isArm64 ? ctxPtr : ctxPtr.add(14 * ptrSize);
       const retval = retvalPtr.readPointer() as any as InvocationReturnValue;

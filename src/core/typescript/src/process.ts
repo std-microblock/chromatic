@@ -12,27 +12,27 @@ import { Module } from './module';
 export const Process = {
   /** CPU architecture: `"arm64"` or `"x64"`. */
   get arch(): string {
-    return NP.getArchitecture();
+    return NP.architecture
   },
 
   /** Operating system: `"darwin"`, `"linux"`, `"windows"`, or `"android"`. */
   get platform(): string {
-    return NP.getPlatform();
+    return NP.platform
   },
 
   /** Native pointer size in bytes (4 or 8). */
   get pointerSize(): number {
-    return NP.getPointerSize();
+    return NP.pointerSize
   },
 
   /** Virtual memory page size in bytes (typically 4096 or 16384). */
   get pageSize(): number {
-    return NP.getPageSize();
+    return NP.pageSize
   },
 
   /** Process ID (PID) of the current process. */
   get id(): number {
-    return NP.getProcessId();
+    return NP.processId
   },
 
   /**
@@ -40,7 +40,7 @@ export const Process = {
    * @returns Thread ID as a number.
    */
   getCurrentThreadId(): number {
-    const hex = NP.getCurrentThreadId();
+    const hex = NP.currentThreadId
     return Number(BigInt(hex));
   },
 
@@ -49,13 +49,7 @@ export const Process = {
    * @returns Array of {@link ModuleInfo} objects.
    */
   enumerateModules(): ModuleInfo[] {
-    const modules = NP.enumerateModules();
-    return modules.map(m => ({
-      name: m.name,
-      base: new NativePointer(m.base),
-      size: m.size,
-      path: m.path
-    }));
+    return NP.enumerateModules() as ModuleInfo[];
   },
 
   /**
@@ -66,13 +60,7 @@ export const Process = {
    * @returns Array of {@link RangeInfo} objects describing each matching range.
    */
   enumerateRanges(protection: string): RangeInfo[] {
-    const ranges = NP.enumerateRanges(protection);
-    return ranges.map(r => ({
-      base: new NativePointer(r.base),
-      size: r.size,
-      protection: r.protection,
-      file: r.filePath ? { path: r.filePath } : undefined
-    }));
+    return NP.enumerateRanges(protection) as RangeInfo[];
   },
 
   /**
@@ -85,12 +73,7 @@ export const Process = {
     const ptr = new NativePointer(address);
     const m = NP.findModuleByAddress(ptr.toString());
     if (!m) return null;
-    return new Module({
-      name: m.name,
-      base: new NativePointer(m.base),
-      size: m.size,
-      path: m.path
-    });
+    return new Module(m as ModuleInfo);
   },
 
   /**
@@ -102,11 +85,6 @@ export const Process = {
   findModuleByName(name: string): Module | null {
     const m = NP.findModuleByName(name);
     if (!m) return null;
-    return new Module({
-      name: m.name,
-      base: new NativePointer(m.base),
-      size: m.size,
-      path: m.path
-    });
+    return new Module(m as ModuleInfo);
   }
 };

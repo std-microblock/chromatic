@@ -1,5 +1,6 @@
 #pragma once
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -38,46 +39,49 @@ struct XrefResult {
 
 struct NativeDisassembler {
   /// Disassemble one instruction at address.
-  static InstructionInfo disassembleOne(const std::string &address);
+  static std::shared_ptr<InstructionInfo>
+  disassembleOne(const std::string &address);
 
   /// Disassemble `count` instructions starting at address.
-  static std::vector<InstructionInfo> disassemble(const std::string &address,
-                                                  int count);
+  static std::vector<std::shared_ptr<InstructionInfo>>
+  disassemble(const std::string &address, int count);
 
   /// Analyze instruction for control flow.
-  static InstructionAnalysis analyzeInstruction(const std::string &address);
+  static std::shared_ptr<InstructionAnalysis>
+  analyzeInstruction(const std::string &address);
 
   /// Find all instructions in [rangeStart, rangeStart+rangeSize) that
   /// reference targetAddr (call, branch, or data/PC-relative load).
-  static std::vector<XrefResult> findXrefs(const std::string &rangeStart,
-                                           int rangeSize,
-                                           const std::string &targetAddr);
+  static std::vector<std::shared_ptr<XrefResult>>
+  findXrefs(const std::string &rangeStart, int rangeSize,
+            const std::string &targetAddr);
 
   /// Find xrefs within a named module.
-  static std::vector<XrefResult>
+  static std::vector<std::shared_ptr<XrefResult>>
   findXrefsInModule(const std::string &moduleName,
                     const std::string &targetAddr);
 
   /// Async variant of findXrefs.
-  static async_simple::coro::Lazy<std::vector<XrefResult>>
+  static async_simple::coro::Lazy<std::vector<std::shared_ptr<XrefResult>>>
   findXrefsAsync(const std::string &rangeStart, int rangeSize,
                  const std::string &targetAddr);
 
   /// Async variant of findXrefsInModule.
-  static async_simple::coro::Lazy<std::vector<XrefResult>>
+  static async_simple::coro::Lazy<std::vector<std::shared_ptr<XrefResult>>>
   findXrefsInModuleAsync(const std::string &moduleName,
                          const std::string &targetAddr);
 
   /// Iterate instructions starting at `address` for `count` instructions,
   /// calling `filter` on each. Return only instructions for which filter
   /// returns true.
-  static std::vector<InstructionInfo>
+  static std::vector<std::shared_ptr<InstructionInfo>>
   filterInstructions(const std::string &address, int count,
-                     std::function<bool(InstructionInfo)> filter);
+                     std::function<bool(std::shared_ptr<InstructionInfo>)> filter);
 
   /// Async variant of filterInstructions.
-  static async_simple::coro::Lazy<std::vector<InstructionInfo>>
-  filterInstructionsAsync(const std::string &address, int count,
-                          std::function<bool(InstructionInfo)> filter);
+  static async_simple::coro::Lazy<std::vector<std::shared_ptr<InstructionInfo>>>
+  filterInstructionsAsync(
+      const std::string &address, int count,
+      std::function<bool(std::shared_ptr<InstructionInfo>)> filter);
 };
 } // namespace chromatic::js

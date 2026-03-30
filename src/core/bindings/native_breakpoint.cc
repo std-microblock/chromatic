@@ -74,7 +74,7 @@ extern "C" void chromatic_bp_dispatch(void *cpuContext, void *bpEntryPtr) {
 
 chromatic::js::HandleAction
 breakpointSigtrapHandler(std::shared_ptr<chromatic::js::ExceptionContext> ctx) {
-  uint64_t bpAddr = ctx->pc;
+  uint64_t bpAddr = ctx->getPc();
 #if defined(CHROMATIC_X64) && !defined(CHROMATIC_WINDOWS)
   // INT3 advances RIP by 1, so the actual BP address is pc - 1
   bpAddr -= 1;

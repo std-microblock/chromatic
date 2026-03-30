@@ -14,8 +14,8 @@ import type { ModuleInfo, ExportInfo, NativePointerValue, ScanMatch, XrefResult 
 export class Module {
   /** Module short name (e.g. "libfoo.dylib"). */
   name: string;
-  /** Base address of the module in memory. */
-  base: NativePointer;
+  /** Base address of the module in memory (hex string). */
+  base: string;
   /** Size of the module image in bytes. */
   size: number;
   /** Full filesystem path. */
@@ -23,7 +23,7 @@ export class Module {
 
   constructor(info: ModuleInfo) {
     this.name = info.name;
-    this.base = new NativePointer(info.base);
+    this.base = info.base;
     this.size = info.size;
     this.path = info.path;
   }
@@ -112,12 +112,7 @@ export class Module {
    */
   static enumerateModules(): Module[] {
     const modules = NativeProcess.enumerateModules();
-    return modules.map(m => new Module({
-      name: m.name,
-      base: new NativePointer(m.base),
-      size: m.size,
-      path: m.path
-    }));
+    return modules.map(m => new Module(m as ModuleInfo));
   }
 
   /**
@@ -126,12 +121,7 @@ export class Module {
    * @returns Array of `ExportInfo` objects.
    */
   static enumerateExports(moduleName: string): ExportInfo[] {
-    const exports = NativeProcess.enumerateExports(moduleName);
-    return exports.map(e => ({
-      type: e.type,
-      name: e.name,
-      address: new NativePointer(e.address)
-    }));
+    return NativeProcess.enumerateExports(moduleName) as ExportInfo[];
   }
 
   /**
@@ -142,11 +132,6 @@ export class Module {
   static load(moduleName: string): Module | null {
     const m = NativeProcess.findModuleByName(moduleName);
     if (!m) return null;
-    return new Module({
-      name: m.name,
-      base: new NativePointer(m.base),
-      size: m.size,
-      path: m.path
-    });
+    return new Module(m as ModuleInfo);
   }
 }

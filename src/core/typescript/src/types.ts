@@ -45,29 +45,34 @@ export interface X64CpuContext extends CpuContext {
 
 export interface ModuleInfo {
   name: string;
-  base: NativePointer;
+  /** Hex address string (e.g. "0x100000"). */
+  base: string;
   size: number;
   path: string;
 }
 
 export interface RangeInfo {
-  base: NativePointer;
+  /** Hex address string. */
+  base: string;
   size: number;
   protection: string;
-  file?: { path: string };
+  filePath: string;
 }
 
 export interface ExportInfo {
   type: string;
   name: string;
-  address: NativePointer;
+  /** Hex address string. */
+  address: string;
 }
 
 export interface InstructionInfo {
-  address: NativePointer;
+  /** Hex address string. */
+  address: string;
   mnemonic: string;
   opStr: string;
   size: number;
+  /** Hex-encoded bytes. */
   bytes: string;
   groups: number[];
   regsRead: number[];
@@ -76,19 +81,30 @@ export interface InstructionInfo {
 
 /** Result of a memory pattern scan match. */
 export interface ScanMatch {
-  /** Address where the pattern was found. */
-  address: NativePointer;
+  /** Hex address string. */
+  address: string;
   /** Size of the matched pattern in bytes. */
   size: number;
 }
 
 /** Result of a cross-reference (xref) search. */
 export interface XrefResult {
-  /** Address of the referring instruction. */
-  address: NativePointer;
+  /** Hex address string of the referring instruction. */
+  address: string;
   /** Type of reference: "call", "branch", or "data". */
   type: string;
   /** Size of the referring instruction in bytes. */
+  size: number;
+}
+
+/** Result of analyzing an instruction for control flow. */
+export interface InstructionAnalysis {
+  isBranch: boolean;
+  isCall: boolean;
+  isRelative: boolean;
+  /** Hex address string of the branch/call target. */
+  target: string;
+  isPcRelative: boolean;
   size: number;
 }
 

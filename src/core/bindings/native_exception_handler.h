@@ -25,7 +25,6 @@ enum class HandleAction { Handled, NotHandled };
 struct ExceptionContext {
   chromatic::js::ExceptionType type;
   uint64_t faultAddress; // Address that faulted (or PC for breakpoints)
-  uint64_t pc;           // Program counter at exception
   chromatic::js::AccessType accessType; // For SIGSEGV: read/write/execute
   void *$platformContext; // ucontext_t* (POSIX) or EXCEPTION_POINTERS* (Win)
 

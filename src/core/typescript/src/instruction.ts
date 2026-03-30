@@ -1,6 +1,6 @@
 import { NativeDisassembler } from 'chromatic';
 import { NativePointer } from './native-pointer';
-import type { NativePointerValue, InstructionInfo, XrefResult } from './types';
+import type { NativePointerValue, InstructionInfo, XrefResult, InstructionAnalysis } from './types';
 
 /**
  * Instruction — disassemble, analyze, and search native instructions.
@@ -16,17 +16,7 @@ export const Instruction = {
    */
   parse(target: NativePointerValue): InstructionInfo {
     const ptr = new NativePointer(target);
-    const raw = NativeDisassembler.disassembleOne(ptr.toString());
-    return {
-      address: new NativePointer(raw.address),
-      mnemonic: raw.mnemonic || '',
-      opStr: raw.opStr || '',
-      size: raw.size || 0,
-      bytes: raw.bytes || '',
-      groups: raw.groups || [],
-      regsRead: raw.regsRead || [],
-      regsWrite: raw.regsWrite || []
-    };
+    return NativeDisassembler.disassembleOne(ptr.toString()) as InstructionInfo;
   },
 
   /**
@@ -38,17 +28,7 @@ export const Instruction = {
    */
   disassemble(target: NativePointerValue, count: number): InstructionInfo[] {
     const ptr = new NativePointer(target);
-    const rawArr = NativeDisassembler.disassemble(ptr.toString(), count);
-    return rawArr.map(r => ({
-      address: new NativePointer(r.address),
-      mnemonic: r.mnemonic || '',
-      opStr: r.opStr || '',
-      size: r.size || 0,
-      bytes: r.bytes || '',
-      groups: r.groups || [],
-      regsRead: r.regsRead || [],
-      regsWrite: r.regsWrite || []
-    }));
+    return NativeDisassembler.disassemble(ptr.toString(), count) as InstructionInfo[];
   },
 
   /**
@@ -57,24 +37,9 @@ export const Instruction = {
    * @param target - Address of the instruction.
    * @returns Object describing branch/call behavior and target address.
    */
-  analyze(target: NativePointerValue): {
-    isBranch: boolean;
-    isCall: boolean;
-    isRelative: boolean;
-    target: NativePointer;
-    isPcRelative: boolean;
-    size: number;
-  } {
+  analyze(target: NativePointerValue): InstructionAnalysis {
     const ptr = new NativePointer(target);
-    const raw = NativeDisassembler.analyzeInstruction(ptr.toString());
-    return {
-      isBranch: raw.isBranch,
-      isCall: raw.isCall,
-      isRelative: raw.isRelative,
-      target: new NativePointer(raw.target),
-      isPcRelative: raw.isPcRelative,
-      size: raw.size
-    };
+    return NativeDisassembler.analyzeInstruction(ptr.toString()) as InstructionAnalysis;
   },
 
   /**
@@ -92,12 +57,7 @@ export const Instruction = {
   findXrefs(rangeStart: NativePointerValue, rangeSize: number, targetAddr: NativePointerValue): XrefResult[] {
     const start = new NativePointer(rangeStart);
     const target = new NativePointer(targetAddr);
-    const results = NativeDisassembler.findXrefs(start.toString(), rangeSize, target.toString());
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      type: r.type,
-      size: r.size
-    }));
+    return NativeDisassembler.findXrefs(start.toString(), rangeSize, target.toString()) as XrefResult[];
   },
 
   /**
@@ -109,12 +69,7 @@ export const Instruction = {
    */
   findXrefsInModule(moduleName: string, targetAddr: NativePointerValue): XrefResult[] {
     const target = new NativePointer(targetAddr);
-    const results = NativeDisassembler.findXrefsInModule(moduleName, target.toString());
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      type: r.type,
-      size: r.size
-    }));
+    return NativeDisassembler.findXrefsInModule(moduleName, target.toString()) as XrefResult[];
   },
 
   /**
@@ -128,12 +83,7 @@ export const Instruction = {
   async findXrefsAsync(rangeStart: NativePointerValue, rangeSize: number, targetAddr: NativePointerValue): Promise<XrefResult[]> {
     const start = new NativePointer(rangeStart);
     const target = new NativePointer(targetAddr);
-    const results = await NativeDisassembler.findXrefsAsync(start.toString(), rangeSize, target.toString());
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      type: r.type,
-      size: r.size
-    }));
+    return await NativeDisassembler.findXrefsAsync(start.toString(), rangeSize, target.toString()) as XrefResult[];
   },
 
   /**
@@ -145,20 +95,15 @@ export const Instruction = {
    */
   async findXrefsInModuleAsync(moduleName: string, targetAddr: NativePointerValue): Promise<XrefResult[]> {
     const target = new NativePointer(targetAddr);
-    const results = await NativeDisassembler.findXrefsInModuleAsync(moduleName, target.toString());
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      type: r.type,
-      size: r.size
-    }));
+    return await NativeDisassembler.findXrefsInModuleAsync(moduleName, target.toString()) as XrefResult[];
   },
 
   /**
    * Iterate `count` instructions starting at `address` and return only
    * those for which the `filter` callback returns `true`.
    *
-   * The callback receives an {@link InstructionInfo} (with raw C++ strings
-   * for `address`) and should return a boolean.
+   * The callback receives an {@link InstructionInfo} (C++ class instance
+   * with string address field).
    *
    * @param address - Start address.
    * @param count   - Number of instructions to iterate.
@@ -174,30 +119,7 @@ export const Instruction = {
    */
   filterInstructions(address: NativePointerValue, count: number, filter: (insn: InstructionInfo) => boolean): InstructionInfo[] {
     const ptr = new NativePointer(address);
-    // Pass a thin wrapper to C++: the C++ binding passes InstructionInfo
-    // with raw string address; we convert in the result mapping.
-    const results = NativeDisassembler.filterInstructions(ptr.toString(), count, (raw) => {
-      return filter({
-        address: new NativePointer(raw.address),
-        mnemonic: raw.mnemonic || '',
-        opStr: raw.opStr || '',
-        size: raw.size || 0,
-        bytes: raw.bytes || '',
-        groups: raw.groups || [],
-        regsRead: raw.regsRead || [],
-        regsWrite: raw.regsWrite || []
-      });
-    });
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      mnemonic: r.mnemonic || '',
-      opStr: r.opStr || '',
-      size: r.size || 0,
-      bytes: r.bytes || '',
-      groups: r.groups || [],
-      regsRead: r.regsRead || [],
-      regsWrite: r.regsWrite || []
-    }));
+    return NativeDisassembler.filterInstructions(ptr.toString(), count, filter as any) as InstructionInfo[];
   },
 
   /**
@@ -210,27 +132,6 @@ export const Instruction = {
    */
   async filterInstructionsAsync(address: NativePointerValue, count: number, filter: (insn: InstructionInfo) => boolean): Promise<InstructionInfo[]> {
     const ptr = new NativePointer(address);
-    const results = await NativeDisassembler.filterInstructionsAsync(ptr.toString(), count, (raw) => {
-      return filter({
-        address: new NativePointer(raw.address),
-        mnemonic: raw.mnemonic || '',
-        opStr: raw.opStr || '',
-        size: raw.size || 0,
-        bytes: raw.bytes || '',
-        groups: raw.groups || [],
-        regsRead: raw.regsRead || [],
-        regsWrite: raw.regsWrite || []
-      });
-    });
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      mnemonic: r.mnemonic || '',
-      opStr: r.opStr || '',
-      size: r.size || 0,
-      bytes: r.bytes || '',
-      groups: r.groups || [],
-      regsRead: r.regsRead || [],
-      regsWrite: r.regsWrite || []
-    }));
+    return await NativeDisassembler.filterInstructionsAsync(ptr.toString(), count, filter as any) as InstructionInfo[];
   }
 };

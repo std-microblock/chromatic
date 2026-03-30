@@ -1,6 +1,6 @@
 #pragma once
 #include <cstdint>
-#include <optional>
+#include <memory>
 #include <string>
 #include <vector>
 namespace chromatic::js {
@@ -52,25 +52,27 @@ struct NativeProcess {
   static std::string getCurrentThreadId();
 
   /// Returns vector of loaded modules
-  static std::vector<ModuleInfo> enumerateModules();
+  static std::vector<std::shared_ptr<ModuleInfo>> enumerateModules();
 
   /// Returns vector of memory ranges matching protection
-  static std::vector<RangeInfo> enumerateRanges(const std::string &protection);
+  static std::vector<std::shared_ptr<RangeInfo>>
+  enumerateRanges(const std::string &protection);
 
   /// Find export address by module and export name. Returns hex address or
   /// "0x0".
   static std::string findExportByName(const std::string &moduleName,
                                       const std::string &exportName);
 
-  /// Find module containing address, or nullopt
-  static std::optional<ModuleInfo>
+  /// Find module containing address, or nullptr
+  static std::shared_ptr<ModuleInfo>
   findModuleByAddress(const std::string &address);
 
-  /// Find module by name, or nullopt
-  static std::optional<ModuleInfo> findModuleByName(const std::string &name);
+  /// Find module by name, or nullptr
+  static std::shared_ptr<ModuleInfo>
+  findModuleByName(const std::string &name);
 
   /// Enumerate exports of a module
-  static std::vector<ExportInfo>
+  static std::vector<std::shared_ptr<ExportInfo>>
   enumerateExports(const std::string &moduleName);
 };
 } // namespace chromatic::js

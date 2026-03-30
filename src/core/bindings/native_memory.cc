@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
@@ -152,9 +153,9 @@ ParsedPattern parsePattern(const std::string &pattern) {
 // ─── Boyer-Moore-Horspool with wildcard support ───────────────────
 // Build bad-character shift table.  Wildcard positions are treated as
 // "match anything", so they must not restrict the shift value.
-std::vector<chromatic::js::ScanMatch>
+std::vector<std::shared_ptr<chromatic::js::ScanMatch>>
 bmhScan(const uint8_t *haystack, size_t haystackLen, const ParsedPattern &pat) {
-  std::vector<chromatic::js::ScanMatch> results;
+  std::vector<std::shared_ptr<chromatic::js::ScanMatch>> results;
   const size_t m = pat.bytes.size();
   if (m == 0 || m > haystackLen)
     return results;
@@ -206,8 +207,8 @@ bmhScan(const uint8_t *haystack, size_t haystackLen, const ParsedPattern &pat) {
       }
     }
     if (match) {
-      results.push_back({toHexAddress(reinterpret_cast<uint64_t>(haystack + i)),
-                         static_cast<int>(m)});
+      results.push_back(std::make_shared<chromatic::js::ScanMatch>(chromatic::js::ScanMatch{toHexAddress(reinterpret_cast<uint64_t>(haystack + i)),
+                         static_cast<int>(m)}));
       // Advance by 1 to find overlapping matches
       i += 1;
     } else {
@@ -390,7 +391,7 @@ void NativeMemory::copyMemory(const std::string &dst, const std::string &src,
 }
 
 // ─── scanMemory — Boyer-Moore-Horspool with wildcards ─────────────
-std::vector<ScanMatch> NativeMemory::scanMemory(const std::string &address,
+std::vector<std::shared_ptr<ScanMatch>> NativeMemory::scanMemory(const std::string &address,
                                                 int size,
                                                 const std::string &pattern) {
   auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
@@ -399,14 +400,14 @@ std::vector<ScanMatch> NativeMemory::scanMemory(const std::string &address,
 }
 
 // ─── scanModule — scan each mapped segment of the module ──────────
-std::vector<ScanMatch> NativeMemory::scanModule(const std::string &moduleName,
+std::vector<std::shared_ptr<ScanMatch>> NativeMemory::scanModule(const std::string &moduleName,
                                                 const std::string &pattern) {
   auto mod = NativeProcess::findModuleByName(moduleName);
   if (!mod)
     throw std::runtime_error("Module not found: " + moduleName);
 
   auto pat = parsePattern(pattern);
-  std::vector<ScanMatch> results;
+  std::vector<std::shared_ptr<ScanMatch>> results;
 
   if (mod->segments.empty()) {
     // No segment info (Windows / macOS) — the full range is contiguous
@@ -424,13 +425,13 @@ std::vector<ScanMatch> NativeMemory::scanModule(const std::string &moduleName,
 }
 
 // ─── Async variants — co_return makes Lazy<T> → JS Promise ───────
-async_simple::coro::Lazy<std::vector<ScanMatch>>
+async_simple::coro::Lazy<std::vector<std::shared_ptr<ScanMatch>>>
 NativeMemory::scanMemoryAsync(const std::string &address, int size,
                               const std::string &pattern) {
   co_return scanMemory(address, size, pattern);
 }
 
-async_simple::coro::Lazy<std::vector<ScanMatch>>
+async_simple::coro::Lazy<std::vector<std::shared_ptr<ScanMatch>>>
 NativeMemory::scanModuleAsync(const std::string &moduleName,
                               const std::string &pattern) {
   co_return scanModule(moduleName, pattern);

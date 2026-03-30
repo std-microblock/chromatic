@@ -92,11 +92,7 @@ export const Memory = {
    */
   scanSync(address: NativePointerValue, size: number, pattern: string): ScanMatch[] {
     const ptr = new NativePointer(address);
-    const results = NativeMemory.scanMemory(ptr.toString(), size, pattern);
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      size: r.size
-    }));
+    return NativeMemory.scanMemory(ptr.toString(), size, pattern) as ScanMatch[];
   },
 
   /**
@@ -112,11 +108,7 @@ export const Memory = {
    */
   async scan(address: NativePointerValue, size: number, pattern: string): Promise<ScanMatch[]> {
     const ptr = new NativePointer(address);
-    const results = await NativeMemory.scanMemoryAsync(ptr.toString(), size, pattern);
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      size: r.size
-    }));
+    return await NativeMemory.scanMemoryAsync(ptr.toString(), size, pattern) as ScanMatch[];
   },
 
   /**
@@ -130,11 +122,7 @@ export const Memory = {
    * @returns Array of {@link ScanMatch} objects.
    */
   scanModule(moduleName: string, pattern: string): ScanMatch[] {
-    const results = NativeMemory.scanModule(moduleName, pattern);
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      size: r.size
-    }));
+    return NativeMemory.scanModule(moduleName, pattern) as ScanMatch[];
   },
 
   /**
@@ -145,11 +133,7 @@ export const Memory = {
    * @returns Promise resolving to an array of {@link ScanMatch}.
    */
   async scanModuleAsync(moduleName: string, pattern: string): Promise<ScanMatch[]> {
-    const results = await NativeMemory.scanModuleAsync(moduleName, pattern);
-    return results.map(r => ({
-      address: new NativePointer(r.address),
-      size: r.size
-    }));
+    return await NativeMemory.scanModuleAsync(moduleName, pattern) as ScanMatch[];
   },
 
   /**

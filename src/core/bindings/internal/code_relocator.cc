@@ -133,7 +133,7 @@ void *buildRelocatedCode(uint64_t source, size_t minBytes,
   while (srcOffset < minBytes) {
     auto insn = chromatic::js::NativeDisassembler::disassembleOne(
         toHexAddr(source + srcOffset));
-    int insnSize = insn.size;
+    int insnSize = insn->size;
     if (insnSize == 0)
       throw std::runtime_error("Cannot disassemble at " +
                                toHexAddr(source + srcOffset));
@@ -141,9 +141,9 @@ void *buildRelocatedCode(uint64_t source, size_t minBytes,
     auto analysis = chromatic::js::NativeDisassembler::analyzeInstruction(
         toHexAddr(source + srcOffset));
 
-    if (analysis.isPcRelative) {
-      uint64_t target = parseHexAddr(analysis.target);
-      std::string mnemonic = insn.mnemonic;
+    if (analysis->isPcRelative) {
+      uint64_t target = parseHexAddr(analysis->target);
+      std::string mnemonic = insn->mnemonic;
 
       if (mnemonic == "b") {
         a.mov(a64::x(16), target);

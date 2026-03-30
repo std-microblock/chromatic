@@ -389,7 +389,7 @@ static void winClearDebugReg(int slot) {
 chromatic::js::HandleAction
 hwBpSigtrapHandler(std::shared_ptr<chromatic::js::ExceptionContext> ctx) {
   // For execute breakpoints, check if PC matches a breakpoint address
-  auto it = g_hwByAddress.find(ctx->pc);
+  auto it = g_hwByAddress.find(ctx->getPc());
   if (it != g_hwByAddress.end()) {
     auto *entry = it->second;
     if (entry->type == HwBpType::Execute && entry->trampolineCode) {

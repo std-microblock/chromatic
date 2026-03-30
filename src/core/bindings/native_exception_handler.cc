@@ -143,9 +143,6 @@ auto buildContextFromSignal(int sig, siginfo_t *info, void *ucontext) {
     ctx.accessType = chromatic::js::AccessType::Unknown;
   }
 
-  // Get PC
-  ctx.pc = ctx.getPc();
-
   return std::make_shared<chromatic::js::ExceptionContext>(std::move(ctx));
 }
 

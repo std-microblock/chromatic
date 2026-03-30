@@ -1,6 +1,7 @@
 #include "native_process.h"
 #include <cstdint>
 #include <cstring>
+#include <memory>
 #include <sstream>
 
 #ifdef CHROMATIC_WINDOWS
@@ -100,8 +101,8 @@ std::string NativeProcess::getCurrentThreadId() {
 #endif
 }
 
-std::vector<ModuleInfo> NativeProcess::enumerateModules() {
-  std::vector<ModuleInfo> result;
+std::vector<std::shared_ptr<ModuleInfo>> NativeProcess::enumerateModules() {
+  std::vector<std::shared_ptr<ModuleInfo>> result;
 
 #ifdef CHROMATIC_WINDOWS
   HMODULE hMods[1024];
@@ -122,9 +123,9 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
         if (pos != std::string::npos)
           name = name.substr(pos + 1);
 
-        result.push_back(
-            {name, toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
-             static_cast<int>(modInfo.SizeOfImage), fullPath});
+        result.push_back(std::make_shared<ModuleInfo>(ModuleInfo{
+            name, toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
+             static_cast<int>(modInfo.SizeOfImage), fullPath}));
       }
     }
   }
@@ -160,8 +161,9 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
     if (pos != std::string::npos)
       name = name.substr(pos + 1);
 
-    result.push_back({name, toHexAddr(reinterpret_cast<uint64_t>(header)),
-                      static_cast<int>(imageSize), fullPath});
+    result.push_back(std::make_shared<ModuleInfo>(ModuleInfo{
+        name, toHexAddr(reinterpret_cast<uint64_t>(header)),
+                      static_cast<int>(imageSize), fullPath}));
   }
 
 #elif defined(CHROMATIC_LINUX) || defined(CHROMATIC_ANDROID)
@@ -215,17 +217,18 @@ std::vector<ModuleInfo> NativeProcess::enumerateModules() {
   }
 
   for (const auto &m : modules) {
-    result.push_back({m.name, toHexAddr(m.base),
-                      static_cast<int>(m.end - m.base), m.path, m.segments});
+    result.push_back(std::make_shared<ModuleInfo>(ModuleInfo{
+        m.name, toHexAddr(m.base),
+                      static_cast<int>(m.end - m.base), m.path, m.segments}));
   }
 #endif
 
   return result;
 }
 
-std::vector<RangeInfo>
+std::vector<std::shared_ptr<RangeInfo>>
 NativeProcess::enumerateRanges(const std::string &protection) {
-  std::vector<RangeInfo> result;
+  std::vector<std::shared_ptr<RangeInfo>> result;
 
   auto matchesProt = [&](const std::string &rangeProt) -> bool {
     if (protection.empty())
@@ -265,9 +268,9 @@ NativeProcess::enumerateRanges(const std::string &protection) {
       }
 
       if (matchesProt(prot)) {
-        result.push_back(
-            {toHexAddr(reinterpret_cast<uint64_t>(mbi.BaseAddress)),
-             static_cast<int>(mbi.RegionSize), prot, ""});
+        result.push_back(std::make_shared<RangeInfo>(RangeInfo{
+            toHexAddr(reinterpret_cast<uint64_t>(mbi.BaseAddress)),
+             static_cast<int>(mbi.RegionSize), prot, ""}));
       }
     }
     addr += mbi.RegionSize;
@@ -295,8 +298,8 @@ NativeProcess::enumerateRanges(const std::string &protection) {
         std::string filePath;
         if (pathname[0] == '/')
           filePath = pathname;
-        result.push_back(
-            {toHexAddr(start), static_cast<int>(end - start), prot, filePath});
+        result.push_back(std::make_shared<RangeInfo>(RangeInfo{
+            toHexAddr(start), static_cast<int>(end - start), prot, filePath}));
       }
     }
   }
@@ -324,8 +327,8 @@ NativeProcess::enumerateRanges(const std::string &protection) {
     prot += (info.protection & VM_PROT_EXECUTE) ? 'x' : '-';
 
     if (matchesProt(prot)) {
-      result.push_back(
-          {toHexAddr(address), static_cast<int>(vmsize), prot, ""});
+      result.push_back(std::make_shared<RangeInfo>(RangeInfo{
+          toHexAddr(address), static_cast<int>(vmsize), prot, ""}));
     }
 
     address += vmsize;
@@ -377,7 +380,7 @@ std::string NativeProcess::findExportByName(const std::string &moduleName,
 #endif
 }
 
-std::optional<ModuleInfo>
+std::shared_ptr<ModuleInfo>
 NativeProcess::findModuleByAddress(const std::string &address) {
   uint64_t addr = parseHexAddr(address);
 
@@ -386,7 +389,7 @@ NativeProcess::findModuleByAddress(const std::string &address) {
   if (!GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
                               GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
                           reinterpret_cast<LPCSTR>(addr), &hMod))
-    return std::nullopt;
+    return nullptr;
 
   MODULEINFO modInfo;
   char modName[MAX_PATH];
@@ -394,7 +397,7 @@ NativeProcess::findModuleByAddress(const std::string &address) {
 
   if (!GetModuleInformation(hProcess, hMod, &modInfo, sizeof(modInfo)) ||
       !GetModuleFileNameExA(hProcess, hMod, modName, sizeof(modName)))
-    return std::nullopt;
+    return nullptr;
 
   std::string fullPath = modName;
   std::string name = fullPath;
@@ -402,9 +405,9 @@ NativeProcess::findModuleByAddress(const std::string &address) {
   if (pos != std::string::npos)
     name = name.substr(pos + 1);
 
-  return ModuleInfo{name,
-                    toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
-                    static_cast<int>(modInfo.SizeOfImage), fullPath};
+  return std::make_shared<ModuleInfo>(ModuleInfo{
+      name, toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
+                    static_cast<int>(modInfo.SizeOfImage), fullPath});
 
 #elif defined(CHROMATIC_DARWIN)
   uint32_t count = _dyld_image_count();
@@ -438,11 +441,12 @@ NativeProcess::findModuleByAddress(const std::string &address) {
       if (pos != std::string::npos)
         name = name.substr(pos + 1);
 
-      return ModuleInfo{name, toHexAddr(base), static_cast<int>(imageSize),
-                        fullPath};
+      return std::make_shared<ModuleInfo>(ModuleInfo{
+          name, toHexAddr(base), static_cast<int>(imageSize),
+                        fullPath});
     }
   }
-  return std::nullopt;
+  return nullptr;
 
 #elif defined(CHROMATIC_LINUX) || defined(CHROMATIC_ANDROID)
   Dl_info info;
@@ -454,27 +458,27 @@ NativeProcess::findModuleByAddress(const std::string &address) {
       name = name.substr(pos + 1);
 
     uint64_t base = reinterpret_cast<uint64_t>(info.dli_fbase);
-    return ModuleInfo{name, toHexAddr(base), 0, fullPath};
+    return std::make_shared<ModuleInfo>(ModuleInfo{name, toHexAddr(base), 0, fullPath});
   }
-  return std::nullopt;
+  return nullptr;
 #else
-  return std::nullopt;
+  return nullptr;
 #endif
 }
 
-std::optional<ModuleInfo>
+std::shared_ptr<ModuleInfo>
 NativeProcess::findModuleByName(const std::string &name) {
   auto modules = enumerateModules();
   for (const auto &m : modules) {
-    if (m.name == name)
+    if (m->name == name)
       return m;
   }
-  return std::nullopt;
+  return nullptr;
 }
 
-std::vector<ExportInfo>
+std::vector<std::shared_ptr<ExportInfo>>
 NativeProcess::enumerateExports(const std::string &moduleName) {
-  std::vector<ExportInfo> result;
+  std::vector<std::shared_ptr<ExportInfo>> result;
 
 #ifdef CHROMATIC_WINDOWS
   HMODULE hMod =
@@ -509,7 +513,7 @@ NativeProcess::enumerateExports(const std::string &moduleName) {
     auto funcAddr = reinterpret_cast<uint64_t>(
         reinterpret_cast<uint8_t *>(hMod) + functions[ordinals[i]]);
 
-    result.push_back({"function", expName, toHexAddr(funcAddr)});
+    result.push_back(std::make_shared<ExportInfo>(ExportInfo{"function", expName, toHexAddr(funcAddr)}));
   }
 
 #elif defined(CHROMATIC_DARWIN)
@@ -571,7 +575,7 @@ NativeProcess::enumerateExports(const std::string &moduleName) {
                     symName++;
                   uint64_t symAddr = syms[s].n_value + slide;
 
-                  result.push_back({"function", symName, toHexAddr(symAddr)});
+                  result.push_back(std::make_shared<ExportInfo>(ExportInfo{"function", symName, toHexAddr(symAddr)}));
                 }
               }
             }
@@ -589,7 +593,7 @@ NativeProcess::enumerateExports(const std::string &moduleName) {
   // then parse its ELF dynamic symbol table (.dynsym / .dynstr).
   struct IterCtx {
     const std::string *moduleName;
-    std::vector<ExportInfo> *result;
+    std::vector<std::shared_ptr<ExportInfo>> *result;
   };
   IterCtx ctx{&moduleName, &result};
 
@@ -684,7 +688,7 @@ NativeProcess::enumerateExports(const std::string &moduleName) {
           unsigned char type = ELF64_ST_TYPE(sym.st_info);
           const char *typeStr = (type == STT_FUNC) ? "function" : "variable";
           uint64_t addr = info->dlpi_addr + sym.st_value;
-          ctx.result->push_back({typeStr, name, toHexAddr(addr)});
+          ctx.result->push_back(std::make_shared<ExportInfo>(ExportInfo{typeStr, name, toHexAddr(addr)}));
         }
         return 1; // stop — found our module
       },

@@ -138,213 +138,28 @@ export class console {
      */
     static timeLineEnd(message: string): void
 }
-export class ScanMatch {
+export class NativeSoftwareBreakpoint {
 	/**
-     *  hex
-     */
-    address: string
-	size: number
-}
-export class NativeMemory {
-	/**
-     *  Read `size` bytes from `address` (hex string), return hex-encoded data
+     *  Set a software breakpoint at address (hex).
+     *  Writes INT3 (x86) or BRK #1 (ARM64).
+     *  onHit receives cpuContext pointer (hex) when triggered.
+     *  Returns breakpointId (hex).
      * @param address: string
-     * @param size: number
+     * @param onHit: ((arg1: string) => void)
      * @returns string
      */
-    static readMemory(address: string, size: number): string
+    static set(address: string, onHit: ((arg1: string) => void)): string
 	/**
-     *  Like readMemory but returns empty string on access fault instead of crashing
-     * @param address: string
-     * @param size: number
-     * @returns string
-     */
-    static safeReadMemory(address: string, size: number): string
-	/**
-     *  Write hex-encoded `hexData` to `address`
-     * @param address: string
-     * @param hexData: string
+     *  Remove a breakpoint by ID. Restores original byte(s).
+     * @param breakpointId: string
      * @returns void
      */
-    static writeMemory(address: string, hexData: string): void
+    static remove(breakpointId: string): void
 	/**
-     *  Allocate `size` bytes of RWX memory, return address as hex string
-     * @param size: number
-     * @returns string
+     *  Remove all software breakpoints.
+      @returns void
      */
-    static allocateMemory(size: number): string
-	/**
-     *  Free previously allocated memory at `address` of given `size`
-     * @param address: string
-     * @param size: number
-     * @returns void
-     */
-    static freeMemory(address: string, size: number): void
-	/**
-     *  Change memory protection. `protection` is like "rwx"/"r-x"/etc.
-     *  Returns old protection string.
-     * @param address: string
-     * @param size: number
-     * @param protection: string
-     * @returns string
-     */
-    static protectMemory(address: string, size: number, protection: string): string
-	/**
-     *  Write bytes + flush instruction cache (for code patching)
-     * @param address: string
-     * @param hexBytes: string
-     * @returns void
-     */
-    static patchCode(address: string, hexBytes: string): void
-	/**
-     *  Flush instruction cache for region
-     * @param address: string
-     * @param size: number
-     * @returns void
-     */
-    static flushIcache(address: string, size: number): void
-	/**
-     *  Copy `size` bytes from `src` to `dst`
-     * @param dst: string
-     * @param src: string
-     * @param size: number
-     * @returns void
-     */
-    static copyMemory(dst: string, src: string, size: number): void
-	/**
-     *  Scan memory region for pattern (e.g. "48 8b ?? 00") using
-     *  Boyer-Moore-Horspool with wildcard support.
-     *  Returns vector of ScanMatch with address + pattern size.
-     * @param address: string
-     * @param size: number
-     * @param pattern: string
-     * @returns Array<ScanMatch>
-     */
-    static scanMemory(address: string, size: number, pattern: string): Array<ScanMatch>
-	/**
-     *  Scan within a named module for pattern.
-     *  Internally looks up module base+size, then delegates to scanMemory.
-     * @param moduleName: string
-     * @param pattern: string
-     * @returns Array<ScanMatch>
-     */
-    static scanModule(moduleName: string, pattern: string): Array<ScanMatch>
-	/**
-     *  Async variant of scanMemory — returns Lazy
-     * <T
-     * > (→ JS Promise).
-     * @param address: string
-     * @param size: number
-     * @param pattern: string
-     * @returns Promise<Array<ScanMatch>>
-     */
-    static scanMemoryAsync(address: string, size: number, pattern: string): Promise<Array<ScanMatch>>
-	/**
-     *  Async variant of scanModule — returns Lazy
-     * <T
-     * > (→ JS Promise).
-     * @param moduleName: string
-     * @param pattern: string
-     * @returns Promise<Array<ScanMatch>>
-     */
-    static scanModuleAsync(moduleName: string, pattern: string): Promise<Array<ScanMatch>>
-}
-export class ModuleInfo {
-	name: string
-	/**
-     *  hex address
-     */
-    base: string
-	size: number
-	path: string
-}
-export class RangeInfo {
-	/**
-     *  hex address
-     */
-    base: string
-	size: number
-	protection: string
-	/**
-     *  empty if none
-     */
-    filePath: string
-}
-export class ExportInfo {
-	type: string
-	name: string
-	/**
-     *  hex address
-     */
-    address: string
-}
-export class NativeProcess {
-	/**
-     *  Returns "arm64" or "x64"
-      @returns string
-     */
-    static getArchitecture(): string
-	/**
-     *  Returns "windows", "linux", "darwin", or "android"
-      @returns string
-     */
-    static getPlatform(): string
-	/**
-     *  Returns pointer size in bytes (4 or 8)
-      @returns number
-     */
-    static getPointerSize(): number
-	/**
-     *  Returns system page size
-      @returns number
-     */
-    static getPageSize(): number
-	/**
-     *  Returns current process ID
-      @returns number
-     */
-    static getProcessId(): number
-	/**
-     *  Returns current thread ID as hex string
-      @returns string
-     */
-    static getCurrentThreadId(): string
-	/**
-     *  Returns vector of loaded modules
-      @returns Array<ModuleInfo>
-     */
-    static enumerateModules(): Array<ModuleInfo>
-	/**
-     *  Returns vector of memory ranges matching protection
-     * @param protection: string
-     * @returns Array<RangeInfo>
-     */
-    static enumerateRanges(protection: string): Array<RangeInfo>
-	/**
-     *  Find export address by module and export name. Returns hex address or "0x0".
-     * @param moduleName: string
-     * @param exportName: string
-     * @returns string
-     */
-    static findExportByName(moduleName: string, exportName: string): string
-	/**
-     *  Find module containing address, or nullopt
-     * @param address: string
-     * @returns ModuleInfo | undefined
-     */
-    static findModuleByAddress(address: string): ModuleInfo | undefined
-	/**
-     *  Find module by name, or nullopt
-     * @param name: string
-     * @returns ModuleInfo | undefined
-     */
-    static findModuleByName(name: string): ModuleInfo | undefined
-	/**
-     *  Enumerate exports of a module
-     * @param moduleName: string
-     * @returns Array<ExportInfo>
-     */
-    static enumerateExports(moduleName: string): Array<ExportInfo>
+    static removeAll(): void
 }
 export class InstructionInfo {
 	mnemonic: string
@@ -457,10 +272,84 @@ export class NativeDisassembler {
      */
     static filterInstructionsAsync(address: string, count: number, filter: ((arg1: InstructionInfo) => boolean)): Promise<Array<InstructionInfo>>
 }
+export const enum ExceptionType {
+	AccessViolation,
+	BusError,
+	Breakpoint,
+	SingleStep,
+	IllegalInstruction,
+	Unknown,
+}
+export const enum AccessType {
+	Read,
+	Write,
+	Execute,
+	Unknown,
+}
+export const enum HandleAction {
+	Handled,
+	NotHandled,
+}
+export class ExceptionContext {
+	type: ExceptionType
+	/**
+     *  Address that faulted (or PC for breakpoints)
+     */
+    faultAddress: number
+	/**
+     *  For SIGSEGV: read/write/execute
+     */
+    accessType: AccessType
+	/**
+     *  Get the program counter from the platform context.
+     */
+    get pc(): number;
+    set pc(value: number);
+}
+export class NativeExceptionHandler {
+	/**
+     *  Enable the global exception handler (opt-in, idempotent).
+      @returns void
+     */
+    static enable(): void
+	/**
+     *  Disable the global exception handler. Restores original handlers.
+      @returns void
+     */
+    static disable(): void
+	/**
+     *  Returns true if currently enabled.
+      @returns boolean
+     */
+    static isEnabled(): boolean
+	/**
+     *  Register a JS callback for a given exception type.
+     *  type:
+     *  "access_violation"|"breakpoint"|"single_step"|"bus_error"|"illegal_instruction"
+     *  The callback receives (exceptionType: string, faultAddress: hex string).
+     *  Returns callbackId (hex) for removal.
+     * @param type: string
+     * @param callback: ((arg1: string, arg2: string) => void)
+     * @returns string
+     */
+    static addCallback(type: string, callback: ((arg1: string, arg2: string) => void)): string
+	/**
+     *  Remove a previously registered callback.
+     * @param callbackId: string
+     * @returns void
+     */
+    static removeCallback(callbackId: string): void
+	/**
+     *  Remove all registered callbacks.
+      @returns void
+     */
+    static removeAllCallbacks(): void
+}
 export class NativeFFI {
 	/**
      *  Call a native function at `address`.
-     *  retType: "void","int","uint","long","ulong","int8","uint8",...,"float","double","pointer"
+     *  retType:
+     *  "void","int","uint","long","ulong","int8","uint8",...,"float","double","pointer"
      *  argTypes: vector of type strings
      *  args: vector of argument values (numbers or hex strings for pointers)
      *  abi: "default","sysv","stdcall","win64"
@@ -475,8 +364,8 @@ export class NativeFFI {
     static callFunction(address: string, retType: string, argTypes: Array<string>, args: Array<string>, abi: string): string
 	/**
      *  Create a native callback closure.
-     *  handler: JS function that receives args as vector of strings, returns result string
-     *  Returns: address of the native closure as hex string
+     *  handler: JS function that receives args as vector of strings, returns
+     *  result string Returns: address of the native closure as hex string
      * @param handler: ((arg1: Array<string>) => string)
      * @param retType: string
      * @param argTypes: Array<string>
@@ -490,6 +379,43 @@ export class NativeFFI {
      * @returns void
      */
     static destroyCallback(address: string): void
+}
+export class NativeHardwareBreakpoint {
+	/**
+     *  Set a hardware breakpoint/watchpoint.
+     *  address: hex target address
+     *  type: "execute" | "write" | "readwrite"
+     *  size: 1, 2, 4, or 8 bytes (for watchpoints; ignored for execute)
+     *  onHit: callback receiving cpuContext pointer (hex)
+     *  Returns breakpointId (hex).
+     * @param address: string
+     * @param type: string
+     * @param size: number
+     * @param onHit: ((arg1: string) => void)
+     * @returns string
+     */
+    static set(address: string, type: string, size: number, onHit: ((arg1: string) => void)): string
+	/**
+     *  Remove a breakpoint by ID.
+     * @param breakpointId: string
+     * @returns void
+     */
+    static remove(breakpointId: string): void
+	/**
+     *  Remove all hardware breakpoints.
+      @returns void
+     */
+    static removeAll(): void
+	/**
+     *  Max hardware breakpoints the platform supports.
+      @returns number
+     */
+    static maxBreakpoints(): number
+	/**
+     *  Currently active count.
+      @returns number
+     */
+    static activeCount(): number
 }
 export class NativeInterceptor {
 	/**
@@ -528,135 +454,117 @@ export class NativeInterceptor {
      */
     static revert(target: string): void
 }
-export class ExceptionContext {
-	type: ExceptionType
+export class ScanMatch {
 	/**
-     *  Address that faulted (or PC for breakpoints)
+     *  hex
      */
-    faultAddress: number
-	/**
-     *  Program counter at exception
-     */
-    pc: number
-	/**
-     *  For SIGSEGV: read/write/execute
-     */
-    accessType: AccessType
-	/**
-     *  Get the program counter from the platform context.
-      @returns number
-     */
-    getPc(): number
-	/**
-     *  Set the program counter in the platform context (for resumption).
-     * @param newPc: number
-     * @returns void
-     */
-    setPc(newPc: number): void
-	/**
-     *  Enable/disable single-step mode (TF on x86, SS bit on ARM64).
-     * @param enable: boolean
-     * @returns void
-     */
-    setSingleStep(enable: boolean): void
+    address: string
+	size: number
 }
-export class NativeExceptionHandler {
+export class NativeMemory {
 	/**
-     *  Enable the global exception handler (opt-in, idempotent).
-      @returns void
-     */
-    static enable(): void
-	/**
-     *  Disable the global exception handler. Restores original handlers.
-      @returns void
-     */
-    static disable(): void
-	/**
-     *  Returns true if currently enabled.
-      @returns boolean
-     */
-    static isEnabled(): boolean
-	/**
-     *  Register a JS callback for a given exception type.
-     *  type: "access_violation"|"breakpoint"|"single_step"|"bus_error"|"illegal_instruction"
-     *  The callback receives (exceptionType: string, faultAddress: hex string).
-     *  Returns callbackId (hex) for removal.
-     * @param type: string
-     * @param callback: ((arg1: string, arg2: string) => void)
-     * @returns string
-     */
-    static addCallback(type: string, callback: ((arg1: string, arg2: string) => void)): string
-	/**
-     *  Remove a previously registered callback.
-     * @param callbackId: string
-     * @returns void
-     */
-    static removeCallback(callbackId: string): void
-	/**
-     *  Remove all registered callbacks.
-      @returns void
-     */
-    static removeAllCallbacks(): void
-}
-export class NativeSoftwareBreakpoint {
-	/**
-     *  Set a software breakpoint at address (hex).
-     *  Writes INT3 (x86) or BRK #1 (ARM64).
-     *  onHit receives cpuContext pointer (hex) when triggered.
-     *  Returns breakpointId (hex).
+     *  Read `size` bytes from `address` (hex string), return hex-encoded data
      * @param address: string
-     * @param onHit: ((arg1: string) => void)
-     * @returns string
-     */
-    static set(address: string, onHit: ((arg1: string) => void)): string
-	/**
-     *  Remove a breakpoint by ID. Restores original byte(s).
-     * @param breakpointId: string
-     * @returns void
-     */
-    static remove(breakpointId: string): void
-	/**
-     *  Remove all software breakpoints.
-      @returns void
-     */
-    static removeAll(): void
-}
-export class NativeHardwareBreakpoint {
-	/**
-     *  Set a hardware breakpoint/watchpoint.
-     *  address: hex target address
-     *  type: "execute" | "write" | "readwrite"
-     *  size: 1, 2, 4, or 8 bytes (for watchpoints; ignored for execute)
-     *  onHit: callback receiving cpuContext pointer (hex)
-     *  Returns breakpointId (hex).
-     * @param address: string
-     * @param type: string
      * @param size: number
-     * @param onHit: ((arg1: string) => void)
      * @returns string
      */
-    static set(address: string, type: string, size: number, onHit: ((arg1: string) => void)): string
+    static readMemory(address: string, size: number): string
 	/**
-     *  Remove a breakpoint by ID.
-     * @param breakpointId: string
+     *  Like readMemory but returns empty string on access fault instead of
+     *  crashing
+     * @param address: string
+     * @param size: number
+     * @returns string
+     */
+    static safeReadMemory(address: string, size: number): string
+	/**
+     *  Write hex-encoded `hexData` to `address`
+     * @param address: string
+     * @param hexData: string
      * @returns void
      */
-    static remove(breakpointId: string): void
+    static writeMemory(address: string, hexData: string): void
 	/**
-     *  Remove all hardware breakpoints.
-      @returns void
+     *  Allocate `size` bytes of RWX memory, return address as hex string
+     * @param size: number
+     * @returns string
      */
-    static removeAll(): void
+    static allocateMemory(size: number): string
 	/**
-     *  Max hardware breakpoints the platform supports.
-      @returns number
+     *  Free previously allocated memory at `address` of given `size`
+     * @param address: string
+     * @param size: number
+     * @returns void
      */
-    static maxBreakpoints(): number
+    static freeMemory(address: string, size: number): void
 	/**
-     *  Currently active count.
-      @returns number
+     *  Change memory protection. `protection` is like "rwx"/"r-x"/etc.
+     *  Returns old protection string.
+     * @param address: string
+     * @param size: number
+     * @param protection: string
+     * @returns string
      */
-    static activeCount(): number
+    static protectMemory(address: string, size: number, protection: string): string
+	/**
+     *  Write bytes + flush instruction cache (for code patching)
+     * @param address: string
+     * @param hexBytes: string
+     * @returns void
+     */
+    static patchCode(address: string, hexBytes: string): void
+	/**
+     *  Flush instruction cache for region
+     * @param address: string
+     * @param size: number
+     * @returns void
+     */
+    static flushIcache(address: string, size: number): void
+	/**
+     *  Copy `size` bytes from `src` to `dst`
+     * @param dst: string
+     * @param src: string
+     * @param size: number
+     * @returns void
+     */
+    static copyMemory(dst: string, src: string, size: number): void
+	/**
+     *  Scan memory region for pattern (e.g. "48 8b ?? 00") using
+     *  Boyer-Moore-Horspool with wildcard support.
+     *  Returns vector of ScanMatch with address + pattern size.
+     * @param address: string
+     * @param size: number
+     * @param pattern: string
+     * @returns Array<ScanMatch>
+     */
+    static scanMemory(address: string, size: number, pattern: string): Array<ScanMatch>
+	/**
+     *  Scan within a named module for pattern.
+     *  Internally looks up module base+size, then delegates to scanMemory.
+     * @param moduleName: string
+     * @param pattern: string
+     * @returns Array<ScanMatch>
+     */
+    static scanModule(moduleName: string, pattern: string): Array<ScanMatch>
+	/**
+     *  Async variant of scanMemory — returns Lazy
+     * <T
+     * > (→ JS Promise).
+     * @param address: string
+     * @param size: number
+     * @param pattern: string
+     * @returns Promise<Array<ScanMatch>>
+     */
+    static scanMemoryAsync(address: string, size: number, pattern: string): Promise<Array<ScanMatch>>
+	/**
+     *  Async variant of scanModule — returns Lazy
+     * <T
+     * > (→ JS Promise).
+     * @param moduleName: string
+     * @param pattern: string
+     * @returns Promise<Array<ScanMatch>>
+     */
+    static scanModuleAsync(moduleName: string, pattern: string): Promise<Array<ScanMatch>>
 }
 export class MemoryAccessDetails {
 	/**
@@ -709,25 +617,130 @@ export class NativeMemoryAccessMonitor {
      */
     static drainPending(): number
 }
+export class SegmentInfo {
+	base: number
+	size: number
+}
+export class ModuleInfo {
+	name: string
+	/**
+     *  hex address
+     */
+    base: string
+	size: number
+	path: string
+	/**
+     *  individual mapped regions (not exposed to JS)
+     */
+    segments: Array<SegmentInfo>
+}
+export class RangeInfo {
+	/**
+     *  hex address
+     */
+    base: string
+	size: number
+	protection: string
+	/**
+     *  empty if none
+     */
+    filePath: string
+}
+export class ExportInfo {
+	type: string
+	name: string
+	/**
+     *  hex address
+     */
+    address: string
+}
+export class NativeProcess {
+	/**
+     *  Returns "arm64" or "x64"
+     */
+    static get architecture(): string;
+	/**
+     *  Returns "windows", "linux", "darwin", or "android"
+     */
+    static get platform(): string;
+	/**
+     *  Returns pointer size in bytes (4 or 8)
+     */
+    static get pointerSize(): number;
+	/**
+     *  Returns system page size
+     */
+    static get pageSize(): number;
+	/**
+     *  Returns current process ID
+     */
+    static get processId(): number;
+	/**
+     *  Returns current thread ID as hex string
+     */
+    static get currentThreadId(): string;
+	/**
+     *  Returns vector of loaded modules
+      @returns Array<ModuleInfo>
+     */
+    static enumerateModules(): Array<ModuleInfo>
+	/**
+     *  Returns vector of memory ranges matching protection
+     * @param protection: string
+     * @returns Array<RangeInfo>
+     */
+    static enumerateRanges(protection: string): Array<RangeInfo>
+	/**
+     *  Find export address by module and export name. Returns hex address or
+     *  "0x0".
+     * @param moduleName: string
+     * @param exportName: string
+     * @returns string
+     */
+    static findExportByName(moduleName: string, exportName: string): string
+	/**
+     *  Find module containing address, or nullptr
+     * @param address: string
+     * @returns ModuleInfo
+     */
+    static findModuleByAddress(address: string): ModuleInfo
+	/**
+     *  Find module by name, or nullptr
+     * @param name: string
+     * @returns ModuleInfo
+     */
+    static findModuleByName(name: string): ModuleInfo
+	/**
+     *  Enumerate exports of a module
+     * @param moduleName: string
+     * @returns Array<ExportInfo>
+     */
+    static enumerateExports(moduleName: string): Array<ExportInfo>
+}
 export class ScriptLifecycle {
 	/**
-	 *  Register a callback to be called before script dispose/reload.
-	 *  Returns callbackId (hex) for removal.
-	 * @param callback: (() => void)
-	 * @returns string
-	 */
+     *  Register a callback to be called before script dispose/reload.
+     *  Returns callbackId (hex) for removal.
+     * @param callback: (() => void)
+     * @returns string
+     */
     static onDispose(callback: (() => void)): string
 	/**
-	 *  Remove a dispose callback by ID.
-	 * @param callbackId: string
-	 * @returns void
-	 */
+     *  Remove a dispose callback by ID.
+     * @param callbackId: string
+     * @returns void
+     */
     static removeDisposeCallback(callbackId: string): void
 	/**
-	 *  Remove all dispose callbacks.
-	  @returns void
-	 */
+     *  Remove all dispose callbacks.
+      @returns void
+     */
     static removeAllDisposeCallbacks(): void
+	/**
+     *  [Internal] Call all registered dispose callbacks, then clear them.
+      @returns void
+     */
+    static _callDisposeCallbacks(): void
 }
 }
 

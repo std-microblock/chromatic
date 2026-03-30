@@ -140,7 +140,7 @@ export class NativePointer {
   /** Bitwise NOT, masked to the native pointer size. */
   not(): NativePointer {
     // Mask to pointer size
-    const ptrSize = NativeProcess.getPointerSize();
+    const ptrSize = NativeProcess.pointerSize
     const mask = ptrSize === 8 ? 0xFFFFFFFFFFFFFFFFn : 0xFFFFFFFFn;
     return new NativePointer((~this._addr) & mask);
   }
@@ -214,7 +214,7 @@ export class NativePointer {
   }
 
   readPointer(): NativePointer {
-    const ptrSize = NativeProcess.getPointerSize();
+    const ptrSize = NativeProcess.pointerSize;
     if (ptrSize === 8) {
       return new NativePointer(this.readU64());
     }
@@ -332,7 +332,7 @@ export class NativePointer {
 
   writePointer(value: NativePointerValue): NativePointer {
     const ptr = new NativePointer(value);
-    const ptrSize = NativeProcess.getPointerSize();
+    const ptrSize = NativeProcess.pointerSize;
     if (ptrSize === 8) {
       return this.writeU64(ptr._addr);
     }

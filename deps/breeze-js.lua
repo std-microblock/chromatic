@@ -1,5 +1,5 @@
-local BREEZE_JS_VERSION = "2026.03.30+2"
-local BREEZE_JS_HASH = "b2d9f0de441f0f8b36e20b2d66a52d31fbf10d1c"
+local BREEZE_JS_VERSION = "2026.03.30+3"
+local BREEZE_JS_HASH = "1769600400b6f27a9c2ceff7c9689601879b7e0c"
 local BREEZE_JS_SOURCEDIR = path.join(os.scriptdir(), "../", "../GitHub/breeze-js")
 local USE_LOCAL = os.exists(BREEZE_JS_SOURCEDIR)
 
