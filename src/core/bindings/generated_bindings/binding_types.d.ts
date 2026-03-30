@@ -3,136 +3,187 @@
 
 declare module 'chromatic' {
 
+export class NativePointer {
+	constructor(addr: number)
+	// Conversion
+	toString(): string
+	toInt32(): number
+	toUInt32(): number
+	toNumber(): number
+	value(): number
+	// Comparison
+	isNull(): boolean
+	equals(other: NativePointer): boolean
+	compare(other: NativePointer): number
+	// Arithmetic
+	add(rhs: number): NativePointer
+	sub(rhs: number): NativePointer
+	and(rhs: NativePointer): NativePointer
+	or(rhs: NativePointer): NativePointer
+	xor(rhs: NativePointer): NativePointer
+	shr(n: number): NativePointer
+	shl(n: number): NativePointer
+	not(): NativePointer
+	// Memory Read
+	readU8(): number
+	readS8(): number
+	readU16(): number
+	readS16(): number
+	readU32(): number
+	readS32(): number
+	readU64(): number
+	readS64(): number
+	readFloat(): number
+	readDouble(): number
+	readPointer(): NativePointer
+	readByteArray(length: number): ArrayBuffer
+	readCString(maxLength: number): string
+	readUtf8String(maxLength: number): string
+	// Memory Write
+	writeU8(v: number): NativePointer
+	writeS8(v: number): NativePointer
+	writeU16(v: number): NativePointer
+	writeS16(v: number): NativePointer
+	writeU32(v: number): NativePointer
+	writeS32(v: number): NativePointer
+	writeU64(v: number): NativePointer
+	writeS64(v: number): NativePointer
+	writeFloat(v: number): NativePointer
+	writeDouble(v: number): NativePointer
+	writePointer(v: NativePointer): NativePointer
+	writeByteArray(bytes: ArrayBuffer): NativePointer
+	writeUtf8String(str: string): NativePointer
+}
 export class console {
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static log(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static error(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static warn(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static info(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static debug(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static trace(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static group(message: string): void
 	static groupEnd(): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static table(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static time(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static timeEnd(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static count(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static countReset(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static dir(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static dirxml(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static profile(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static profileEnd(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static timeStamp(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static timeline(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static timelineEnd(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static timeLog(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
     static timeLine(message: string): void
 	/**
-     * 
+     *
      * @param message: string
      * @returns void
      */
@@ -140,15 +191,15 @@ export class console {
 }
 export class NativeSoftwareBreakpoint {
 	/**
-     *  Set a software breakpoint at address (hex).
+     *  Set a software breakpoint at address.
      *  Writes INT3 (x86) or BRK #1 (ARM64).
      *  onHit receives cpuContext pointer (hex) when triggered.
      *  Returns breakpointId (hex).
-     * @param address: string
+     * @param address: NativePointer
      * @param onHit: ((arg1: string) => void)
      * @returns string
      */
-    static set(address: string, onHit: ((arg1: string) => void)): string
+    static set(address: NativePointer, onHit: ((arg1: string) => void)): string
 	/**
      *  Remove a breakpoint by ID. Restores original byte(s).
      * @param breakpointId: string
@@ -169,10 +220,7 @@ export class InstructionInfo {
      *  hex
      */
     bytes: string
-	/**
-     *  hex
-     */
-    address: string
+	address: NativePointer
 	groups: Array<number>
 	regsRead: Array<number>
 	regsWrite: Array<number>
@@ -181,18 +229,15 @@ export class InstructionAnalysis {
 	isBranch: boolean
 	isCall: boolean
 	isRelative: boolean
-	/**
-     *  hex
-     */
-    target: string
+	target: NativePointer
 	isPcRelative: boolean
 	size: number
 }
 export class XrefResult {
 	/**
-     *  hex — the referring instruction's address
+     *  the referring instruction's address
      */
-    address: string
+    address: NativePointer
 	/**
      *  "call" | "branch" | "data"
      */
@@ -205,72 +250,72 @@ export class XrefResult {
 export class NativeDisassembler {
 	/**
      *  Disassemble one instruction at address.
-     * @param address: string
+     * @param address: NativePointer
      * @returns InstructionInfo
      */
-    static disassembleOne(address: string): InstructionInfo
+    static disassembleOne(address: NativePointer): InstructionInfo
 	/**
      *  Disassemble `count` instructions starting at address.
-     * @param address: string
+     * @param address: NativePointer
      * @param count: number
      * @returns Array<InstructionInfo>
      */
-    static disassemble(address: string, count: number): Array<InstructionInfo>
+    static disassemble(address: NativePointer, count: number): Array<InstructionInfo>
 	/**
      *  Analyze instruction for control flow.
-     * @param address: string
+     * @param address: NativePointer
      * @returns InstructionAnalysis
      */
-    static analyzeInstruction(address: string): InstructionAnalysis
+    static analyzeInstruction(address: NativePointer): InstructionAnalysis
 	/**
      *  Find all instructions in [rangeStart, rangeStart+rangeSize) that
      *  reference targetAddr (call, branch, or data/PC-relative load).
-     * @param rangeStart: string
+     * @param rangeStart: NativePointer
      * @param rangeSize: number
-     * @param targetAddr: string
+     * @param targetAddr: NativePointer
      * @returns Array<XrefResult>
      */
-    static findXrefs(rangeStart: string, rangeSize: number, targetAddr: string): Array<XrefResult>
+    static findXrefs(rangeStart: NativePointer, rangeSize: number, targetAddr: NativePointer): Array<XrefResult>
 	/**
      *  Find xrefs within a named module.
      * @param moduleName: string
-     * @param targetAddr: string
+     * @param targetAddr: NativePointer
      * @returns Array<XrefResult>
      */
-    static findXrefsInModule(moduleName: string, targetAddr: string): Array<XrefResult>
+    static findXrefsInModule(moduleName: string, targetAddr: NativePointer): Array<XrefResult>
 	/**
      *  Async variant of findXrefs.
-     * @param rangeStart: string
+     * @param rangeStart: NativePointer
      * @param rangeSize: number
-     * @param targetAddr: string
+     * @param targetAddr: NativePointer
      * @returns Promise<Array<XrefResult>>
      */
-    static findXrefsAsync(rangeStart: string, rangeSize: number, targetAddr: string): Promise<Array<XrefResult>>
+    static findXrefsAsync(rangeStart: NativePointer, rangeSize: number, targetAddr: NativePointer): Promise<Array<XrefResult>>
 	/**
      *  Async variant of findXrefsInModule.
      * @param moduleName: string
-     * @param targetAddr: string
+     * @param targetAddr: NativePointer
      * @returns Promise<Array<XrefResult>>
      */
-    static findXrefsInModuleAsync(moduleName: string, targetAddr: string): Promise<Array<XrefResult>>
+    static findXrefsInModuleAsync(moduleName: string, targetAddr: NativePointer): Promise<Array<XrefResult>>
 	/**
      *  Iterate instructions starting at `address` for `count` instructions,
      *  calling `filter` on each. Return only instructions for which filter
      *  returns true.
-     * @param address: string
+     * @param address: NativePointer
      * @param count: number
      * @param filter: ((arg1: InstructionInfo) => boolean)
      * @returns Array<InstructionInfo>
      */
-    static filterInstructions(address: string, count: number, filter: ((arg1: InstructionInfo) => boolean)): Array<InstructionInfo>
+    static filterInstructions(address: NativePointer, count: number, filter: ((arg1: InstructionInfo) => boolean)): Array<InstructionInfo>
 	/**
      *  Async variant of filterInstructions.
-     * @param address: string
+     * @param address: NativePointer
      * @param count: number
      * @param filter: ((arg1: InstructionInfo) => boolean)
      * @returns Promise<Array<InstructionInfo>>
      */
-    static filterInstructionsAsync(address: string, count: number, filter: ((arg1: InstructionInfo) => boolean)): Promise<Array<InstructionInfo>>
+    static filterInstructionsAsync(address: NativePointer, count: number, filter: ((arg1: InstructionInfo) => boolean)): Promise<Array<InstructionInfo>>
 }
 export const enum ExceptionType {
 	AccessViolation,
@@ -354,47 +399,46 @@ export class NativeFFI {
      *  args: vector of argument values (numbers or hex strings for pointers)
      *  abi: "default","sysv","stdcall","win64"
      *  Returns: result as string (number or hex address)
-     * @param address: string
+     * @param address: NativePointer
      * @param retType: string
      * @param argTypes: Array<string>
      * @param args: Array<string>
      * @param abi: string
      * @returns string
      */
-    static callFunction(address: string, retType: string, argTypes: Array<string>, args: Array<string>, abi: string): string
+    static callFunction(address: NativePointer, retType: string, argTypes: Array<string>, args: Array<string>, abi: string): string
 	/**
      *  Create a native callback closure.
      *  handler: JS function that receives args as vector of strings, returns
-     *  result string Returns: address of the native closure as hex string
+     *  result string Returns: address of the native closure
      * @param handler: ((arg1: Array<string>) => string)
      * @param retType: string
      * @param argTypes: Array<string>
      * @param abi: string
-     * @returns string
+     * @returns NativePointer
      */
-    static createCallback(handler: ((arg1: Array<string>) => string), retType: string, argTypes: Array<string>, abi: string): string
+    static createCallback(handler: ((arg1: Array<string>) => string), retType: string, argTypes: Array<string>, abi: string): NativePointer
 	/**
      *  Destroy a previously created callback closure
-     * @param address: string
+     * @param address: NativePointer
      * @returns void
      */
-    static destroyCallback(address: string): void
+    static destroyCallback(address: NativePointer): void
 }
 export class NativeHardwareBreakpoint {
 	/**
      *  Set a hardware breakpoint/watchpoint.
-     *  address: hex target address
      *  type: "execute" | "write" | "readwrite"
      *  size: 1, 2, 4, or 8 bytes (for watchpoints; ignored for execute)
      *  onHit: callback receiving cpuContext pointer (hex)
      *  Returns breakpointId (hex).
-     * @param address: string
+     * @param address: NativePointer
      * @param type: string
      * @param size: number
      * @param onHit: ((arg1: string) => void)
      * @returns string
      */
-    static set(address: string, type: string, size: number, onHit: ((arg1: string) => void)): string
+    static set(address: NativePointer, type: string, size: number, onHit: ((arg1: string) => void)): string
 	/**
      *  Remove a breakpoint by ID.
      * @param breakpointId: string
@@ -422,12 +466,12 @@ export class NativeInterceptor {
      *  Attach an inline hook to `target`.
      *  onEnter/onLeave receive the cpuContext pointer as a hex string.
      *  Returns a hookId string used for detaching.
-     * @param target: string
+     * @param target: NativePointer
      * @param onEnter: ((arg1: string) => void)
      * @param onLeave: ((arg1: string) => void)
      * @returns string
      */
-    static attach(target: string, onEnter: ((arg1: string) => void), onLeave: ((arg1: string) => void)): string
+    static attach(target: NativePointer, onEnter: ((arg1: string) => void), onLeave: ((arg1: string) => void)): string
 	/**
      *  Detach a hook by hookId.
      * @param hookId: string
@@ -441,103 +485,100 @@ export class NativeInterceptor {
     static detachAll(): void
 	/**
      *  Replace target function with replacement.
-     *  Returns trampoline address (hex) to call the original function.
-     * @param target: string
-     * @param replacement: string
-     * @returns string
+     *  Returns trampoline address to call the original function.
+     * @param target: NativePointer
+     * @param replacement: NativePointer
+     * @returns NativePointer
      */
-    static replace(target: string, replacement: string): string
+    static replace(target: NativePointer, replacement: NativePointer): NativePointer
 	/**
      *  Revert a replacement.
-     * @param target: string
+     * @param target: NativePointer
      * @returns void
      */
-    static revert(target: string): void
+    static revert(target: NativePointer): void
 }
 export class ScanMatch {
-	/**
-     *  hex
-     */
-    address: string
+	address: NativePointer
 	size: number
 }
 export class NativeMemory {
 	/**
-     *  Read `size` bytes from `address` (hex string), return hex-encoded data
-     * @param address: string
+     *  Read `size` bytes from `address`, return as ArrayBuffer
+     * @param address: NativePointer
      * @param size: number
-     * @returns string
+     * @returns ArrayBuffer
      */
-    static readMemory(address: string, size: number): string
+    static readMemory(address: NativePointer, size: number): ArrayBuffer
 	/**
-     *  Like readMemory but returns empty string on access fault instead of
+     *  Like readMemory but returns empty ArrayBuffer on access fault instead of
      *  crashing
-     * @param address: string
+     * @param address: NativePointer
      * @param size: number
-     * @returns string
+     * @returns ArrayBuffer
      */
-    static safeReadMemory(address: string, size: number): string
+    static safeReadMemory(address: NativePointer, size: number): ArrayBuffer
 	/**
-     *  Write hex-encoded `hexData` to `address`
-     * @param address: string
-     * @param hexData: string
+     *  Write bytes to `address`
+     * @param address: NativePointer
+     * @param data: ArrayBuffer
      * @returns void
      */
-    static writeMemory(address: string, hexData: string): void
+    static writeMemory(address: NativePointer, data: ArrayBuffer): void
 	/**
-     *  Allocate `size` bytes of RWX memory, return address as hex string
+     *  Allocate `size` bytes of RWX memory, return address
      * @param size: number
-     * @returns string
+     * @returns NativePointer
      */
-    static allocateMemory(size: number): string
+    static allocateMemory(size: number): NativePointer
 	/**
      *  Free previously allocated memory at `address` of given `size`
-     * @param address: string
+     * @param address: NativePointer
      * @param size: number
      * @returns void
      */
-    static freeMemory(address: string, size: number): void
+    static freeMemory(address: NativePointer, size: number): void
 	/**
      *  Change memory protection. `protection` is like "rwx"/"r-x"/etc.
      *  Returns old protection string.
-     * @param address: string
+     * @param address: NativePointer
      * @param size: number
      * @param protection: string
      * @returns string
      */
-    static protectMemory(address: string, size: number, protection: string): string
+    static protectMemory(address: NativePointer, size: number, protection: string): string
 	/**
      *  Write bytes + flush instruction cache (for code patching)
-     * @param address: string
-     * @param hexBytes: string
+     * @param address: NativePointer
+     * @param bytes: ArrayBuffer
      * @returns void
      */
-    static patchCode(address: string, hexBytes: string): void
+    static patchCode(address: NativePointer, bytes: ArrayBuffer): void
 	/**
      *  Flush instruction cache for region
-     * @param address: string
+     * @param address: NativePointer
      * @param size: number
      * @returns void
      */
-    static flushIcache(address: string, size: number): void
+    static flushIcache(address: NativePointer, size: number): void
 	/**
      *  Copy `size` bytes from `src` to `dst`
-     * @param dst: string
-     * @param src: string
+     * @param dst: NativePointer
+     * @param src: NativePointer
      * @param size: number
      * @returns void
      */
-    static copyMemory(dst: string, src: string, size: number): void
+    static copyMemory(dst: NativePointer, src: NativePointer, size: number): void
 	/**
      *  Scan memory region for pattern (e.g. "48 8b ?? 00") using
      *  Boyer-Moore-Horspool with wildcard support.
      *  Returns vector of ScanMatch with address + pattern size.
-     * @param address: string
+     * @param address: NativePointer
      * @param size: number
      * @param pattern: string
      * @returns Array<ScanMatch>
      */
-    static scanMemory(address: string, size: number, pattern: string): Array<ScanMatch>
+    static scanMemory(address: NativePointer, size: number, pattern: string): Array<ScanMatch>
 	/**
      *  Scan within a named module for pattern.
      *  Internally looks up module base+size, then delegates to scanMemory.
@@ -547,19 +588,15 @@ export class NativeMemory {
      */
     static scanModule(moduleName: string, pattern: string): Array<ScanMatch>
 	/**
-     *  Async variant of scanMemory — returns Lazy
-     * <T
-     * > (→ JS Promise).
-     * @param address: string
+     *  Async variant of scanMemory — returns Lazy<T> (-> JS Promise).
+     * @param address: NativePointer
      * @param size: number
      * @param pattern: string
      * @returns Promise<Array<ScanMatch>>
      */
-    static scanMemoryAsync(address: string, size: number, pattern: string): Promise<Array<ScanMatch>>
+    static scanMemoryAsync(address: NativePointer, size: number, pattern: string): Promise<Array<ScanMatch>>
 	/**
-     *  Async variant of scanModule — returns Lazy
-     * <T
-     * > (→ JS Promise).
+     *  Async variant of scanModule — returns Lazy<T> (-> JS Promise).
      * @param moduleName: string
      * @param pattern: string
      * @returns Promise<Array<ScanMatch>>
@@ -568,13 +605,13 @@ export class NativeMemory {
 }
 export class MemoryAccessDetails {
 	/**
-     *  hex — exact access address
+     *  exact access address
      */
-    address: string
+    address: NativePointer
 	/**
-     *  hex — page-aligned base
+     *  page-aligned base
      */
-    pageBase: string
+    pageBase: NativePointer
 	/**
      *  "read" | "write" | "execute"
      */
@@ -592,12 +629,12 @@ export class NativeMemoryAccessMonitor {
      *  and the access is recorded.
      *  onAccess fires with (address, pageBase, operation, rangeIndex).
      *  Returns monitorId (hex).
-     * @param addresses: Array<string>
+     * @param addresses: Array<NativePointer>
      * @param sizes: Array<number>
-     * @param onAccess: ((arg1: string, arg2: string, arg3: string, arg4: number) => void)
+     * @param onAccess: ((arg1: NativePointer, arg2: NativePointer, arg3: string, arg4: number) => void)
      * @returns string
      */
-    static enable(addresses: Array<string>, sizes: Array<number>, onAccess: ((arg1: string, arg2: string, arg3: string, arg4: number) => void)): string
+    static enable(addresses: Array<NativePointer>, sizes: Array<number>, onAccess: ((arg1: NativePointer, arg2: NativePointer, arg3: string, arg4: number) => void)): string
 	/**
      *  Disable monitoring for a specific monitor.
      * @param monitorId: string
@@ -623,10 +660,7 @@ export class SegmentInfo {
 }
 export class ModuleInfo {
 	name: string
-	/**
-     *  hex address
-     */
-    base: string
+	base: NativePointer
 	size: number
 	path: string
 	/**
@@ -635,10 +669,7 @@ export class ModuleInfo {
     segments: Array<SegmentInfo>
 }
 export class RangeInfo {
-	/**
-     *  hex address
-     */
-    base: string
+	base: NativePointer
 	size: number
 	protection: string
 	/**
@@ -649,10 +680,7 @@ export class RangeInfo {
 export class ExportInfo {
 	type: string
 	name: string
-	/**
-     *  hex address
-     */
-    address: string
+	address: NativePointer
 }
 export class NativeProcess {
 	/**
@@ -676,9 +704,9 @@ export class NativeProcess {
      */
     static get processId(): number;
 	/**
-     *  Returns current thread ID as hex string
+     *  Returns current thread ID
      */
-    static get currentThreadId(): string;
+    static get currentThreadId(): NativePointer;
 	/**
      *  Returns vector of loaded modules
       @returns Array<ModuleInfo>
@@ -691,19 +719,18 @@ export class NativeProcess {
      */
     static enumerateRanges(protection: string): Array<RangeInfo>
 	/**
-     *  Find export address by module and export name. Returns hex address or
-     *  "0x0".
+     *  Find export address by module and export name.
      * @param moduleName: string
      * @param exportName: string
-     * @returns string
+     * @returns NativePointer
      */
-    static findExportByName(moduleName: string, exportName: string): string
+    static findExportByName(moduleName: string, exportName: string): NativePointer
 	/**
      *  Find module containing address, or nullptr
-     * @param address: string
+     * @param address: NativePointer
      * @returns ModuleInfo
      */
-    static findModuleByAddress(address: string): ModuleInfo
+    static findModuleByAddress(address: NativePointer): ModuleInfo
 	/**
      *  Find module by name, or nullptr
      * @param name: string

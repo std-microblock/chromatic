@@ -3,6 +3,7 @@
 // e.g. #include "some_lib/some_header.h"
 // STL can be included
 #pragma once
+#include "native_pointer.h"
 #include "console.h"
 #include "native_breakpoint.h"
 #include "native_disassembler.h"

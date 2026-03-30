@@ -1,5 +1,5 @@
-import { NativeDisassembler } from 'chromatic';
-import { NativePointer } from './native-pointer';
+import { NativeDisassembler, NativePointer } from 'chromatic';
+import { ptr } from './native-pointer';
 import type { NativePointerValue, InstructionInfo, XrefResult, InstructionAnalysis } from './types';
 
 /**
@@ -15,8 +15,7 @@ export const Instruction = {
    * @returns Parsed {@link InstructionInfo} with mnemonic, operands, bytes, etc.
    */
   parse(target: NativePointerValue): InstructionInfo {
-    const ptr = new NativePointer(target);
-    return NativeDisassembler.disassembleOne(ptr.toString()) as InstructionInfo;
+    return NativeDisassembler.disassembleOne(ptr(target)) as InstructionInfo;
   },
 
   /**
@@ -27,8 +26,7 @@ export const Instruction = {
    * @returns Array of {@link InstructionInfo}.
    */
   disassemble(target: NativePointerValue, count: number): InstructionInfo[] {
-    const ptr = new NativePointer(target);
-    return NativeDisassembler.disassemble(ptr.toString(), count) as InstructionInfo[];
+    return NativeDisassembler.disassemble(ptr(target), count) as InstructionInfo[];
   },
 
   /**
@@ -38,8 +36,7 @@ export const Instruction = {
    * @returns Object describing branch/call behavior and target address.
    */
   analyze(target: NativePointerValue): InstructionAnalysis {
-    const ptr = new NativePointer(target);
-    return NativeDisassembler.analyzeInstruction(ptr.toString()) as InstructionAnalysis;
+    return NativeDisassembler.analyzeInstruction(ptr(target)) as InstructionAnalysis;
   },
 
   /**
@@ -55,9 +52,7 @@ export const Instruction = {
    * @returns Array of {@link XrefResult}.
    */
   findXrefs(rangeStart: NativePointerValue, rangeSize: number, targetAddr: NativePointerValue): XrefResult[] {
-    const start = new NativePointer(rangeStart);
-    const target = new NativePointer(targetAddr);
-    return NativeDisassembler.findXrefs(start.toString(), rangeSize, target.toString()) as XrefResult[];
+    return NativeDisassembler.findXrefs(ptr(rangeStart), rangeSize, ptr(targetAddr)) as XrefResult[];
   },
 
   /**
@@ -68,8 +63,7 @@ export const Instruction = {
    * @returns Array of {@link XrefResult}.
    */
   findXrefsInModule(moduleName: string, targetAddr: NativePointerValue): XrefResult[] {
-    const target = new NativePointer(targetAddr);
-    return NativeDisassembler.findXrefsInModule(moduleName, target.toString()) as XrefResult[];
+    return NativeDisassembler.findXrefsInModule(moduleName, ptr(targetAddr)) as XrefResult[];
   },
 
   /**
@@ -81,9 +75,7 @@ export const Instruction = {
    * @returns Promise resolving to an array of {@link XrefResult}.
    */
   async findXrefsAsync(rangeStart: NativePointerValue, rangeSize: number, targetAddr: NativePointerValue): Promise<XrefResult[]> {
-    const start = new NativePointer(rangeStart);
-    const target = new NativePointer(targetAddr);
-    return await NativeDisassembler.findXrefsAsync(start.toString(), rangeSize, target.toString()) as XrefResult[];
+    return await NativeDisassembler.findXrefsAsync(ptr(rangeStart), rangeSize, ptr(targetAddr)) as XrefResult[];
   },
 
   /**
@@ -94,8 +86,7 @@ export const Instruction = {
    * @returns Promise resolving to an array of {@link XrefResult}.
    */
   async findXrefsInModuleAsync(moduleName: string, targetAddr: NativePointerValue): Promise<XrefResult[]> {
-    const target = new NativePointer(targetAddr);
-    return await NativeDisassembler.findXrefsInModuleAsync(moduleName, target.toString()) as XrefResult[];
+    return await NativeDisassembler.findXrefsInModuleAsync(moduleName, ptr(targetAddr)) as XrefResult[];
   },
 
   /**
@@ -103,7 +94,7 @@ export const Instruction = {
    * those for which the `filter` callback returns `true`.
    *
    * The callback receives an {@link InstructionInfo} (C++ class instance
-   * with string address field).
+   * with NativePointer address field).
    *
    * @param address - Start address.
    * @param count   - Number of instructions to iterate.
@@ -118,8 +109,7 @@ export const Instruction = {
    * ```
    */
   filterInstructions(address: NativePointerValue, count: number, filter: (insn: InstructionInfo) => boolean): InstructionInfo[] {
-    const ptr = new NativePointer(address);
-    return NativeDisassembler.filterInstructions(ptr.toString(), count, filter as any) as InstructionInfo[];
+    return NativeDisassembler.filterInstructions(ptr(address), count, filter as any) as InstructionInfo[];
   },
 
   /**
@@ -131,7 +121,6 @@ export const Instruction = {
    * @returns Promise resolving to an array of matching {@link InstructionInfo}.
    */
   async filterInstructionsAsync(address: NativePointerValue, count: number, filter: (insn: InstructionInfo) => boolean): Promise<InstructionInfo[]> {
-    const ptr = new NativePointer(address);
-    return await NativeDisassembler.filterInstructionsAsync(ptr.toString(), count, filter as any) as InstructionInfo[];
+    return await NativeDisassembler.filterInstructionsAsync(ptr(address), count, filter as any) as InstructionInfo[];
   }
 };

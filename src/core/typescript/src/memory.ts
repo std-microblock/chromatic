@@ -1,5 +1,5 @@
-import { NativeMemory } from 'chromatic';
-import { NativePointer } from './native-pointer';
+import { NativeMemory, NativePointer } from 'chromatic';
+import { ptr } from './native-pointer';
 import type { NativePointerValue, ScanMatch } from './types';
 
 /**
@@ -16,8 +16,7 @@ export const Memory = {
    * @returns A {@link NativePointer} to the allocated region.
    */
   alloc(size: number): NativePointer {
-    const addr = NativeMemory.allocateMemory(size);
-    return new NativePointer(addr);
+    return NativeMemory.allocateMemory(size);
   },
 
   /**
@@ -43,9 +42,9 @@ export const Memory = {
     }
     encoded.push(0); // null terminator
 
-    const ptr = Memory.alloc(encoded.length);
-    ptr.writeByteArray(encoded);
-    return ptr;
+    const p = Memory.alloc(encoded.length);
+    p.writeByteArray(new Uint8Array(encoded).buffer as ArrayBuffer);
+    return p;
   },
 
   /**
@@ -58,8 +57,7 @@ export const Memory = {
    */
   protect(address: NativePointerValue, size: number, protection: string): boolean {
     try {
-      const ptr = new NativePointer(address);
-      NativeMemory.protectMemory(ptr.toString(), size, protection);
+      NativeMemory.protectMemory(ptr(address), size, protection);
       return true;
     } catch {
       return false;
@@ -74,9 +72,7 @@ export const Memory = {
    * @param size - Number of bytes to copy.
    */
   copy(dst: NativePointerValue, src: NativePointerValue, size: number): void {
-    const d = new NativePointer(dst);
-    const s = new NativePointer(src);
-    NativeMemory.copyMemory(d.toString(), s.toString(), size);
+    NativeMemory.copyMemory(ptr(dst), ptr(src), size);
   },
 
   /**
@@ -91,8 +87,7 @@ export const Memory = {
    * @returns Array of {@link ScanMatch} objects for each match found.
    */
   scanSync(address: NativePointerValue, size: number, pattern: string): ScanMatch[] {
-    const ptr = new NativePointer(address);
-    return NativeMemory.scanMemory(ptr.toString(), size, pattern) as ScanMatch[];
+    return NativeMemory.scanMemory(ptr(address), size, pattern) as ScanMatch[];
   },
 
   /**
@@ -107,8 +102,7 @@ export const Memory = {
    * @returns Promise resolving to an array of {@link ScanMatch}.
    */
   async scan(address: NativePointerValue, size: number, pattern: string): Promise<ScanMatch[]> {
-    const ptr = new NativePointer(address);
-    return await NativeMemory.scanMemoryAsync(ptr.toString(), size, pattern) as ScanMatch[];
+    return await NativeMemory.scanMemoryAsync(ptr(address), size, pattern) as ScanMatch[];
   },
 
   /**
@@ -149,16 +143,16 @@ export const Memory = {
    * @param apply   - Callback that modifies the writable buffer.
    */
   patchCode(address: NativePointerValue, size: number, apply: (code: NativePointer) => void): void {
-    const ptr = new NativePointer(address);
+    const p = ptr(address);
     // Allocate temporary writable buffer
     const buf = Memory.alloc(size);
     // Copy original code
-    Memory.copy(buf, ptr, size);
+    Memory.copy(buf, p, size);
     // Let user modify the buffer
     apply(buf);
-    // Patch the hex
-    const hex = NativeMemory.readMemory(buf.toString(), size);
-    NativeMemory.patchCode(ptr.toString(), hex);
+    // Read modified bytes and patch
+    const bytes = NativeMemory.readMemory(buf, size);
+    NativeMemory.patchCode(p, bytes);
   },
 
   /**
@@ -168,7 +162,6 @@ export const Memory = {
    * @param size    - Size of the allocation in bytes.
    */
   free(address: NativePointerValue, size: number): void {
-    const ptr = new NativePointer(address);
-    NativeMemory.freeMemory(ptr.toString(), size);
+    NativeMemory.freeMemory(ptr(address), size);
   }
 };

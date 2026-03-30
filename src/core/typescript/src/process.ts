@@ -1,5 +1,5 @@
 import { NativeProcess as NP } from 'chromatic';
-import { NativePointer } from './native-pointer';
+import { NativePointer, ptr } from './native-pointer';
 import type { ModuleInfo, RangeInfo } from './types';
 import { Module } from './module';
 
@@ -40,8 +40,7 @@ export const Process = {
    * @returns Thread ID as a number.
    */
   getCurrentThreadId(): number {
-    const hex = NP.currentThreadId
-    return Number(BigInt(hex));
+    return NP.currentThreadId.toNumber();
   },
 
   /**
@@ -70,8 +69,8 @@ export const Process = {
    * @returns {@link Module} if found, or `null`.
    */
   findModuleByAddress(address: NativePointer | string): Module | null {
-    const ptr = new NativePointer(address);
-    const m = NP.findModuleByAddress(ptr.toString());
+    const p = ptr(address);
+    const m = NP.findModuleByAddress(p);
     if (!m) return null;
     return new Module(m as ModuleInfo);
   },

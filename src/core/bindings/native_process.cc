@@ -1,8 +1,8 @@
 #include "native_process.h"
+#include "native_pointer.h"
 #include <cstdint>
 #include <cstring>
 #include <memory>
-#include <sstream>
 
 #ifdef CHROMATIC_WINDOWS
 #include <windows.h>
@@ -27,20 +27,6 @@
 #include <fstream>
 #include <link.h>
 #endif
-
-namespace {
-
-std::string toHexAddr(uint64_t addr) {
-  std::ostringstream oss;
-  oss << "0x" << std::hex << addr;
-  return oss.str();
-}
-
-uint64_t parseHexAddr(const std::string &s) {
-  return std::stoull(s, nullptr, 16);
-}
-
-} // namespace
 
 namespace chromatic::js {
 
@@ -88,15 +74,15 @@ int NativeProcess::getProcessId() {
 #endif
 }
 
-std::string NativeProcess::getCurrentThreadId() {
+std::shared_ptr<NativePointer> NativeProcess::getCurrentThreadId() {
 #ifdef CHROMATIC_WINDOWS
-  return toHexAddr(static_cast<uint64_t>(GetCurrentThreadId()));
+  return std::make_shared<NativePointer>(static_cast<uint64_t>(GetCurrentThreadId()));
 #elif defined(CHROMATIC_DARWIN)
   uint64_t tid;
   pthread_threadid_np(nullptr, &tid);
-  return toHexAddr(tid);
+  return std::make_shared<NativePointer>(tid);
 #else
-  return toHexAddr(static_cast<uint64_t>(
+  return std::make_shared<NativePointer>(static_cast<uint64_t>(
       reinterpret_cast<uintptr_t>(reinterpret_cast<void *>(pthread_self()))));
 #endif
 }
@@ -124,7 +110,7 @@ std::vector<std::shared_ptr<ModuleInfo>> NativeProcess::enumerateModules() {
           name = name.substr(pos + 1);
 
         result.push_back(std::make_shared<ModuleInfo>(ModuleInfo{
-            name, toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
+            name, std::make_shared<NativePointer>(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
              static_cast<int>(modInfo.SizeOfImage), fullPath}));
       }
     }
@@ -162,7 +148,7 @@ std::vector<std::shared_ptr<ModuleInfo>> NativeProcess::enumerateModules() {
       name = name.substr(pos + 1);
 
     result.push_back(std::make_shared<ModuleInfo>(ModuleInfo{
-        name, toHexAddr(reinterpret_cast<uint64_t>(header)),
+        name, std::make_shared<NativePointer>(reinterpret_cast<uint64_t>(header)),
                       static_cast<int>(imageSize), fullPath}));
   }
 
@@ -218,7 +204,7 @@ std::vector<std::shared_ptr<ModuleInfo>> NativeProcess::enumerateModules() {
 
   for (const auto &m : modules) {
     result.push_back(std::make_shared<ModuleInfo>(ModuleInfo{
-        m.name, toHexAddr(m.base),
+        m.name, std::make_shared<NativePointer>(m.base),
                       static_cast<int>(m.end - m.base), m.path, m.segments}));
   }
 #endif
@@ -269,7 +255,7 @@ NativeProcess::enumerateRanges(const std::string &protection) {
 
       if (matchesProt(prot)) {
         result.push_back(std::make_shared<RangeInfo>(RangeInfo{
-            toHexAddr(reinterpret_cast<uint64_t>(mbi.BaseAddress)),
+            std::make_shared<NativePointer>(reinterpret_cast<uint64_t>(mbi.BaseAddress)),
              static_cast<int>(mbi.RegionSize), prot, ""}));
       }
     }
@@ -299,7 +285,7 @@ NativeProcess::enumerateRanges(const std::string &protection) {
         if (pathname[0] == '/')
           filePath = pathname;
         result.push_back(std::make_shared<RangeInfo>(RangeInfo{
-            toHexAddr(start), static_cast<int>(end - start), prot, filePath}));
+            std::make_shared<NativePointer>(start), static_cast<int>(end - start), prot, filePath}));
       }
     }
   }
@@ -328,7 +314,7 @@ NativeProcess::enumerateRanges(const std::string &protection) {
 
     if (matchesProt(prot)) {
       result.push_back(std::make_shared<RangeInfo>(RangeInfo{
-          toHexAddr(address), static_cast<int>(vmsize), prot, ""}));
+          std::make_shared<NativePointer>(address), static_cast<int>(vmsize), prot, ""}));
     }
 
     address += vmsize;
@@ -338,7 +324,7 @@ NativeProcess::enumerateRanges(const std::string &protection) {
   return result;
 }
 
-std::string NativeProcess::findExportByName(const std::string &moduleName,
+std::shared_ptr<NativePointer> NativeProcess::findExportByName(const std::string &moduleName,
                                             const std::string &exportName) {
 #ifdef CHROMATIC_WINDOWS
   if (moduleName.empty()) {
@@ -347,22 +333,22 @@ std::string NativeProcess::findExportByName(const std::string &moduleName,
     HANDLE hProcess = GetCurrentProcess();
 
     if (!EnumProcessModules(hProcess, hMods, sizeof(hMods), &cbNeeded))
-      return "0x0";
+      return std::make_shared<NativePointer>(0);
 
     const auto count = static_cast<size_t>(cbNeeded / sizeof(HMODULE));
     for (size_t i = 0; i < count; i++) {
       if (FARPROC proc = GetProcAddress(hMods[i], exportName.c_str()))
-        return toHexAddr(reinterpret_cast<uint64_t>(proc));
+        return std::make_shared<NativePointer>(reinterpret_cast<uint64_t>(proc));
     }
-    return "0x0";
+    return std::make_shared<NativePointer>(0);
   }
 
   HMODULE hMod = GetModuleHandleA(moduleName.c_str());
   if (!hMod)
-    return "0x0";
+    return std::make_shared<NativePointer>(0);
   if (FARPROC proc = GetProcAddress(hMod, exportName.c_str()))
-    return toHexAddr(reinterpret_cast<uint64_t>(proc));
-  return "0x0";
+    return std::make_shared<NativePointer>(reinterpret_cast<uint64_t>(proc));
+  return std::make_shared<NativePointer>(0);
 #else
   void *handle = nullptr;
   if (moduleName.empty()) {
@@ -375,14 +361,14 @@ std::string NativeProcess::findExportByName(const std::string &moduleName,
   }
   void *sym = dlsym(handle, exportName.c_str());
   if (!sym)
-    return "0x0";
-  return toHexAddr(reinterpret_cast<uint64_t>(sym));
+    return std::make_shared<NativePointer>(0);
+  return std::make_shared<NativePointer>(reinterpret_cast<uint64_t>(sym));
 #endif
 }
 
 std::shared_ptr<ModuleInfo>
-NativeProcess::findModuleByAddress(const std::string &address) {
-  uint64_t addr = parseHexAddr(address);
+NativeProcess::findModuleByAddress(std::shared_ptr<NativePointer> address) {
+  uint64_t addr = address->value();
 
 #ifdef CHROMATIC_WINDOWS
   HMODULE hMod;
@@ -406,7 +392,7 @@ NativeProcess::findModuleByAddress(const std::string &address) {
     name = name.substr(pos + 1);
 
   return std::make_shared<ModuleInfo>(ModuleInfo{
-      name, toHexAddr(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
+      name, std::make_shared<NativePointer>(reinterpret_cast<uint64_t>(modInfo.lpBaseOfDll)),
                     static_cast<int>(modInfo.SizeOfImage), fullPath});
 
 #elif defined(CHROMATIC_DARWIN)
@@ -442,7 +428,7 @@ NativeProcess::findModuleByAddress(const std::string &address) {
         name = name.substr(pos + 1);
 
       return std::make_shared<ModuleInfo>(ModuleInfo{
-          name, toHexAddr(base), static_cast<int>(imageSize),
+          name, std::make_shared<NativePointer>(base), static_cast<int>(imageSize),
                         fullPath});
     }
   }
@@ -458,7 +444,7 @@ NativeProcess::findModuleByAddress(const std::string &address) {
       name = name.substr(pos + 1);
 
     uint64_t base = reinterpret_cast<uint64_t>(info.dli_fbase);
-    return std::make_shared<ModuleInfo>(ModuleInfo{name, toHexAddr(base), 0, fullPath});
+    return std::make_shared<ModuleInfo>(ModuleInfo{name, std::make_shared<NativePointer>(base), 0, fullPath});
   }
   return nullptr;
 #else
@@ -513,7 +499,7 @@ NativeProcess::enumerateExports(const std::string &moduleName) {
     auto funcAddr = reinterpret_cast<uint64_t>(
         reinterpret_cast<uint8_t *>(hMod) + functions[ordinals[i]]);
 
-    result.push_back(std::make_shared<ExportInfo>(ExportInfo{"function", expName, toHexAddr(funcAddr)}));
+    result.push_back(std::make_shared<ExportInfo>(ExportInfo{"function", expName, std::make_shared<NativePointer>(funcAddr)}));
   }
 
 #elif defined(CHROMATIC_DARWIN)
@@ -575,7 +561,7 @@ NativeProcess::enumerateExports(const std::string &moduleName) {
                     symName++;
                   uint64_t symAddr = syms[s].n_value + slide;
 
-                  result.push_back(std::make_shared<ExportInfo>(ExportInfo{"function", symName, toHexAddr(symAddr)}));
+                  result.push_back(std::make_shared<ExportInfo>(ExportInfo{"function", symName, std::make_shared<NativePointer>(symAddr)}));
                 }
               }
             }
@@ -688,7 +674,7 @@ NativeProcess::enumerateExports(const std::string &moduleName) {
           unsigned char type = ELF64_ST_TYPE(sym.st_info);
           const char *typeStr = (type == STT_FUNC) ? "function" : "variable";
           uint64_t addr = info->dlpi_addr + sym.st_value;
-          ctx.result->push_back(std::make_shared<ExportInfo>(ExportInfo{typeStr, name, toHexAddr(addr)}));
+          ctx.result->push_back(std::make_shared<ExportInfo>(ExportInfo{typeStr, name, std::make_shared<NativePointer>(addr)}));
         }
         return 1; // stop — found our module
       },

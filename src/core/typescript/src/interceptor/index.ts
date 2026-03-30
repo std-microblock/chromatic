@@ -1,5 +1,5 @@
-import { NativeInterceptor, NativeProcess } from 'chromatic';
-import { NativePointer } from '../native-pointer';
+import { NativeInterceptor, NativeProcess, NativePointer } from 'chromatic';
+import { ptr } from '../native-pointer';
 import type {
   NativePointerValue,
   InvocationCallbacks,
@@ -20,7 +20,7 @@ export const Interceptor = {
    * Attach inline hook to `target`.
    */
   attach(target: NativePointerValue, callbacks: InvocationCallbacks): InvocationListener {
-    const ptr = new NativePointer(target);
+    const p = ptr(target);
 
     const onEnter = (cpuContextPtr: string) => {
       if (!callbacks.onEnter) return;
@@ -37,7 +37,7 @@ export const Interceptor = {
           if (typeof prop === 'string') {
             const idx = parseInt(prop, 10);
             if (!isNaN(idx)) {
-              const ctxPtr = new NativePointer(cpuContextPtr);
+              const ctxPtr = new NativePointer(parseInt(cpuContextPtr, 16));
               const ptrSize = NativeProcess.pointerSize;
               if (isArm64) {
                 return ctxPtr.add(idx * ptrSize).readPointer();
@@ -56,14 +56,14 @@ export const Interceptor = {
           if (typeof prop === 'string') {
             const idx = parseInt(prop, 10);
             if (!isNaN(idx)) {
-              const ctxPtr = new NativePointer(cpuContextPtr);
+              const ctxPtr = new NativePointer(parseInt(cpuContextPtr, 16));
               const ptrSize = NativeProcess.pointerSize;
               if (isArm64) {
-                ctxPtr.add(idx * ptrSize).writePointer(value);
+                ctxPtr.add(idx * ptrSize).writePointer(ptr(value));
               } else {
                 const regOffsets = [7, 6, 3, 2, 8, 9];
                 if (idx < regOffsets.length) {
-                  ctxPtr.add(regOffsets[idx] * ptrSize).writePointer(value);
+                  ctxPtr.add(regOffsets[idx] * ptrSize).writePointer(ptr(value));
                 }
               }
               return true;
@@ -89,13 +89,13 @@ export const Interceptor = {
         returnAddress: new NativePointer(0),
       };
 
-      const ctxPtr = new NativePointer(cpuContextPtr);
+      const ctxPtr = new NativePointer(parseInt(cpuContextPtr, 16));
       const ptrSize = NativeProcess.pointerSize;
 
       const retvalPtr = isArm64 ? ctxPtr : ctxPtr.add(14 * ptrSize);
       const retval = retvalPtr.readPointer() as any as InvocationReturnValue;
       retval.replace = (value: NativePointerValue) => {
-        retvalPtr.writePointer(new NativePointer(value));
+        retvalPtr.writePointer(ptr(value));
       };
 
       try {
@@ -105,7 +105,7 @@ export const Interceptor = {
       }
     };
 
-    const hookId = NativeInterceptor.attach(ptr.toString(), onEnter, onLeave);
+    const hookId = NativeInterceptor.attach(p, onEnter, onLeave);
 
     return {
       detach() {
@@ -119,18 +119,14 @@ export const Interceptor = {
    * to a trampoline that calls the original function.
    */
   replace(target: NativePointerValue, replacement: NativePointerValue): NativePointer {
-    const ptr = new NativePointer(target);
-    const replPtr = new NativePointer(replacement);
-    const trampolineAddr = NativeInterceptor.replace(ptr.toString(), replPtr.toString());
-    return new NativePointer(trampolineAddr);
+    return NativeInterceptor.replace(ptr(target), ptr(replacement));
   },
 
   /**
    * Revert a hook/replace at `target`.
    */
   revert(target: NativePointerValue): void {
-    const ptr = new NativePointer(target);
-    NativeInterceptor.revert(ptr.toString());
+    NativeInterceptor.revert(ptr(target));
   },
 
   /**

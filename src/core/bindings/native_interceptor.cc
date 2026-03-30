@@ -1,4 +1,5 @@
 #include "native_interceptor.h"
+#include "native_pointer.h"
 #include "internal/code_relocator.h"
 
 #include <cstdint>
@@ -88,24 +89,24 @@ extern "C" void chromatic_interceptor_dispatch_leave(void *cpuContext,
 namespace chromatic::js {
 
 std::string
-NativeInterceptor::attach(const std::string &targetStr,
+NativeInterceptor::attach(std::shared_ptr<NativePointer> target,
                           std::function<void(std::string)> onEnter,
                           std::function<void(std::string)> onLeave) {
-  uint64_t target = parseHexAddr(targetStr);
+  uint64_t targetVal = target->value();
 
   std::lock_guard<std::mutex> lock(hookMutex);
 
-  if (hooksByTarget.count(target))
-    throw std::runtime_error("Already hooked at " + targetStr);
+  if (hooksByTarget.count(targetVal))
+    throw std::runtime_error("Already hooked at " + target->toString());
 
   auto *entry = new HookEntry();
-  entry->target = target;
+  entry->target = targetVal;
   entry->onEnter = std::move(onEnter);
   entry->onLeave = std::move(onLeave);
   entry->patchSize = internal::PATCH_SIZE;
 
   // 1. Save original bytes
-  auto *targetPtr = reinterpret_cast<uint8_t *>(target);
+  auto *targetPtr = reinterpret_cast<uint8_t *>(targetVal);
   entry->originalBytes.resize(internal::PATCH_SIZE);
   std::memcpy(entry->originalBytes.data(), targetPtr, internal::PATCH_SIZE);
 
@@ -113,7 +114,7 @@ NativeInterceptor::attach(const std::string &targetStr,
   size_t bytesConsumed = 0;
   try {
     entry->relocatedCode = internal::buildRelocatedCode(
-        target, internal::PATCH_SIZE, bytesConsumed);
+        targetVal, internal::PATCH_SIZE, bytesConsumed);
   } catch (...) {
     delete entry;
     throw;
@@ -141,7 +142,7 @@ NativeInterceptor::attach(const std::string &targetStr,
   // 5. Register
   uint64_t hookId = nextHookId++;
   hooksById[hookId] = entry;
-  hooksByTarget[target] = entry;
+  hooksByTarget[targetVal] = entry;
 
   return toHexAddr(hookId);
 }
@@ -185,23 +186,24 @@ void NativeInterceptor::detachAll() {
   hooksByTarget.clear();
 }
 
-std::string NativeInterceptor::replace(const std::string &targetStr,
-                                       const std::string &replacementStr) {
-  uint64_t target = parseHexAddr(targetStr);
-  uint64_t replacement = parseHexAddr(replacementStr);
+std::shared_ptr<NativePointer>
+NativeInterceptor::replace(std::shared_ptr<NativePointer> target,
+                           std::shared_ptr<NativePointer> replacement) {
+  uint64_t targetVal = target->value();
+  uint64_t replacementVal = replacement->value();
 
   std::lock_guard<std::mutex> lock(hookMutex);
 
-  if (hooksByTarget.count(target))
-    throw std::runtime_error("Already hooked at " + targetStr);
+  if (hooksByTarget.count(targetVal))
+    throw std::runtime_error("Already hooked at " + target->toString());
 
   auto *entry = new HookEntry();
-  entry->target = target;
+  entry->target = targetVal;
   entry->patchSize = internal::PATCH_SIZE;
   entry->trampolineCode = nullptr;
 
   // Save original bytes
-  auto *targetPtr = reinterpret_cast<uint8_t *>(target);
+  auto *targetPtr = reinterpret_cast<uint8_t *>(targetVal);
   entry->originalBytes.resize(internal::PATCH_SIZE);
   std::memcpy(entry->originalBytes.data(), targetPtr, internal::PATCH_SIZE);
 
@@ -209,7 +211,7 @@ std::string NativeInterceptor::replace(const std::string &targetStr,
   size_t bytesConsumed = 0;
   try {
     entry->relocatedCode = internal::buildRelocatedCode(
-        target, internal::PATCH_SIZE, bytesConsumed);
+        targetVal, internal::PATCH_SIZE, bytesConsumed);
   } catch (...) {
     delete entry;
     throw;
@@ -217,22 +219,22 @@ std::string NativeInterceptor::replace(const std::string &targetStr,
 
   // Patch target to jump to replacement
   uint8_t patchBuf[16];
-  internal::generatePatchBytes(patchBuf, replacement);
+  internal::generatePatchBytes(patchBuf, replacementVal);
   internal::makeWritableAndPatch(targetPtr, patchBuf, internal::PATCH_SIZE);
 
   uint64_t hookId = nextHookId++;
   hooksById[hookId] = entry;
-  hooksByTarget[target] = entry;
+  hooksByTarget[targetVal] = entry;
 
-  return toHexAddr(reinterpret_cast<uint64_t>(entry->relocatedCode));
+  return std::make_shared<NativePointer>(reinterpret_cast<uint64_t>(entry->relocatedCode));
 }
 
-void NativeInterceptor::revert(const std::string &targetStr) {
-  uint64_t target = parseHexAddr(targetStr);
+void NativeInterceptor::revert(std::shared_ptr<NativePointer> target) {
+  uint64_t targetVal = target->value();
 
   std::lock_guard<std::mutex> lock(hookMutex);
 
-  auto it = hooksByTarget.find(target);
+  auto it = hooksByTarget.find(targetVal);
   if (it == hooksByTarget.end())
     return;
 

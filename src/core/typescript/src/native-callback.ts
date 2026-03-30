@@ -1,5 +1,5 @@
-import { NativeFFI } from 'chromatic';
-import { NativePointer } from './native-pointer';
+import { NativeFFI, NativePointer } from 'chromatic';
+import { ptr } from './native-pointer';
 import type { NativeType } from './types';
 
 /**
@@ -24,7 +24,7 @@ export class NativeCallback {
       // Convert raw string args based on types
       const args = rawArgs.map((arg, i) => {
         const type = argTypes[i];
-        if (type === 'pointer') return new NativePointer(String(arg));
+        if (type === 'pointer') return new NativePointer(parseInt(String(arg), 16));
         if (type === 'float' || type === 'double') return Number(arg);
         return Number(arg);
       });
@@ -35,7 +35,7 @@ export class NativeCallback {
         if (retType === 'void') return '0';
         if (retType === 'pointer') {
           if (result instanceof NativePointer) return result.toString();
-          return new NativePointer(result).toString();
+          return ptr(result).toString();
         }
         return String(result ?? 0);
       } catch (e) {
@@ -43,8 +43,7 @@ export class NativeCallback {
       }
     };
 
-    const addr = NativeFFI.createCallback(wrappedHandler, retType, argTypes, abi);
-    this._address = new NativePointer(addr);
+    this._address = NativeFFI.createCallback(wrappedHandler, retType, argTypes, abi);
   }
 
   get address(): NativePointer {
@@ -52,6 +51,6 @@ export class NativeCallback {
   }
 
   destroy(): void {
-    NativeFFI.destroyCallback(this._address.toString());
+    NativeFFI.destroyCallback(this._address);
   }
 }

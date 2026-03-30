@@ -1,12 +1,12 @@
-import { NativeFFI } from 'chromatic';
-import { NativePointer } from './native-pointer';
+import { NativeFFI, NativePointer } from 'chromatic';
+import { ptr } from './native-pointer';
 import type { NativeType, NativePointerValue } from './types';
 
 /**
  * NativeFunction — call native functions from JavaScript.
  * Compatible with Frida's NativeFunction API.
  *
- * Now passes string[] directly to C++ (no JSON serialization).
+ * Now passes NativePointer directly to C++ for the address parameter.
  */
 export class NativeFunction {
   private _address: NativePointer;
@@ -20,7 +20,7 @@ export class NativeFunction {
     argTypes: NativeType[],
     abi: string = 'default'
   ) {
-    this._address = new NativePointer(address);
+    this._address = ptr(address);
     this._retType = retType;
     this._argTypes = argTypes;
     this._abi = abi;
@@ -54,7 +54,7 @@ export class NativeFunction {
     });
 
     const result = NativeFFI.callFunction(
-      this._address.toString(),
+      this._address,
       this._retType,
       this._argTypes,
       serializedArgs,
@@ -63,7 +63,7 @@ export class NativeFunction {
 
     // Parse result based on return type
     if (this._retType === 'void') return undefined;
-    if (this._retType === 'pointer') return new NativePointer(result);
+    if (this._retType === 'pointer') return new NativePointer(parseInt(result, 16));
     if (this._retType === 'float' || this._retType === 'double') return parseFloat(result);
     if (this._retType === 'int64' || this._retType === 'uint64' ||
         this._retType === 'long' || this._retType === 'ulong') {

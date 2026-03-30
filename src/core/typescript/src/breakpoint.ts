@@ -1,5 +1,5 @@
 import { NativeSoftwareBreakpoint, NativeHardwareBreakpoint } from 'chromatic';
-import { NativePointer } from './native-pointer';
+import { ptr } from './native-pointer';
 import type { NativePointerValue } from './types';
 
 export interface BreakpointListener {
@@ -22,8 +22,7 @@ export const SoftwareBreakpoint = {
    * @returns A listener with a `remove()` method.
    */
   set(target: NativePointerValue, onHit: () => void): BreakpointListener {
-    const addr = new NativePointer(target);
-    const id = NativeSoftwareBreakpoint.set(addr.toString(), (_cpuCtx: string) => {
+    const id = NativeSoftwareBreakpoint.set(ptr(target), (_cpuCtx: string) => {
       try {
         onHit();
       } catch (e) {
@@ -62,8 +61,7 @@ export const HardwareBreakpoint = {
    * @returns A listener with a `remove()` method.
    */
   set(target: NativePointerValue, type: string, size: number, onHit: () => void): BreakpointListener {
-    const addr = new NativePointer(target);
-    const id = NativeHardwareBreakpoint.set(addr.toString(), type, size, (_cpuCtx: string) => {
+    const id = NativeHardwareBreakpoint.set(ptr(target), type, size, (_cpuCtx: string) => {
       try {
         onHit();
       } catch (e) {

@@ -1,5 +1,5 @@
-import { NativeMemory } from 'chromatic';
-import { NativePointer } from './native-pointer';
+import { NativeMemory, NativePointer } from 'chromatic';
+import { ptr } from './native-pointer';
 import type { NativePointerValue } from './types';
 
 /**
@@ -37,13 +37,14 @@ export function hexdump(
     }
     baseAddr = BigInt(offset);
   } else {
-    const ptr = new NativePointer(target);
-    const addr = ptr.add(offset);
-    const hex = NativeMemory.safeReadMemory(addr.toString(), length);
-    if (!hex) return '(inaccessible)';
+    const p = ptr(target);
+    const addr = p.add(offset);
+    const data = NativeMemory.safeReadMemory(addr, length);
+    if (!data || data.byteLength === 0) return '(inaccessible)';
+    const view = new Uint8Array(data);
     bytes = [];
-    for (let i = 0; i < hex.length; i += 2) {
-      bytes.push(parseInt(hex.substr(i, 2), 16));
+    for (let i = 0; i < view.length; i++) {
+      bytes.push(view[i]);
     }
     baseAddr = BigInt(addr.toString());
   }

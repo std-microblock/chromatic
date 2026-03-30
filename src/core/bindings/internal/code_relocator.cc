@@ -1,5 +1,6 @@
 #include "code_relocator.h"
 #include "../native_disassembler.h"
+#include "../native_pointer.h"
 
 #ifdef CHROMATIC_ARM64
 #include <asmjit/a64.h>
@@ -9,7 +10,7 @@
 #include <asmjit/core.h>
 #include <cstdint>
 #include <cstring>
-#include <sstream>
+#include <memory>
 #include <stdexcept>
 
 #ifdef CHROMATIC_WINDOWS
@@ -26,14 +27,8 @@
 
 namespace {
 
-uint64_t parseHexAddr(const std::string &s) {
-  return std::stoull(s, nullptr, 16);
-}
-
-std::string toHexAddr(uint64_t addr) {
-  std::ostringstream oss;
-  oss << "0x" << std::hex << addr;
-  return oss.str();
+inline std::shared_ptr<chromatic::js::NativePointer> makePtr(uint64_t addr) {
+  return std::make_shared<chromatic::js::NativePointer>(addr);
 }
 
 } // anonymous namespace
@@ -131,18 +126,16 @@ void *buildRelocatedCode(uint64_t source, size_t minBytes,
   a64::Assembler a(&code);
 
   while (srcOffset < minBytes) {
-    auto insn = chromatic::js::NativeDisassembler::disassembleOne(
-        toHexAddr(source + srcOffset));
+    auto addrPtr = makePtr(source + srcOffset);
+    auto insn = chromatic::js::NativeDisassembler::disassembleOne(addrPtr);
     int insnSize = insn->size;
     if (insnSize == 0)
-      throw std::runtime_error("Cannot disassemble at " +
-                               toHexAddr(source + srcOffset));
+      throw std::runtime_error("Cannot disassemble at " + addrPtr->toString());
 
-    auto analysis = chromatic::js::NativeDisassembler::analyzeInstruction(
-        toHexAddr(source + srcOffset));
+    auto analysis = chromatic::js::NativeDisassembler::analyzeInstruction(addrPtr);
 
     if (analysis->isPcRelative) {
-      uint64_t target = parseHexAddr(analysis->target);
+      uint64_t target = analysis->target->value();
       std::string mnemonic = insn->mnemonic;
 
       if (mnemonic == "b") {
@@ -175,18 +168,16 @@ void *buildRelocatedCode(uint64_t source, size_t minBytes,
   x86::Assembler a(&code);
 
   while (srcOffset < minBytes) {
-    auto insn = chromatic::js::NativeDisassembler::disassembleOne(
-        toHexAddr(source + srcOffset));
-    int insnSize = insn.size;
+    auto addrPtr = makePtr(source + srcOffset);
+    auto insn = chromatic::js::NativeDisassembler::disassembleOne(addrPtr);
+    int insnSize = insn->size;
     if (insnSize == 0)
-      throw std::runtime_error("Cannot disassemble at " +
-                               toHexAddr(source + srcOffset));
+      throw std::runtime_error("Cannot disassemble at " + addrPtr->toString());
 
-    auto analysis = chromatic::js::NativeDisassembler::analyzeInstruction(
-        toHexAddr(source + srcOffset));
+    auto analysis = chromatic::js::NativeDisassembler::analyzeInstruction(addrPtr);
 
-    if (analysis.isPcRelative) {
-      uint64_t target = parseHexAddr(analysis.target);
+    if (analysis->isPcRelative) {
+      uint64_t target = analysis->target->value();
       uint8_t firstByte = srcPtr[srcOffset];
 
       if (firstByte == 0xE9) {
@@ -200,7 +191,7 @@ void *buildRelocatedCode(uint64_t source, size_t minBytes,
         auto skipLabel = a.newLabel();
         a.embedUInt64(target);
         a.bind(skipLabel);
-      } else if (analysis.isBranch && !analysis.isCall) {
+      } else if (analysis->isBranch && !analysis->isCall) {
         // Conditional branch
         uint8_t cc = 0;
         if (firstByte >= 0x70 && firstByte <= 0x7F) {

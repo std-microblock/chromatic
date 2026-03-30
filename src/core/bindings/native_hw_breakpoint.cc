@@ -1,4 +1,5 @@
 #include "native_hw_breakpoint.h"
+#include "native_pointer.h"
 #include "internal/code_relocator.h"
 #include "native_exception_handler.h"
 
@@ -492,7 +493,7 @@ namespace chromatic::js {
 namespace cr = ::chromatic::internal;
 
 std::string
-NativeHardwareBreakpoint::set(const std::string &addressStr,
+NativeHardwareBreakpoint::set(std::shared_ptr<NativePointer> address,
                               const std::string &typeStr, int size,
                               std::function<void(std::string)> onHit) {
 
@@ -500,14 +501,13 @@ NativeHardwareBreakpoint::set(const std::string &addressStr,
   throw std::runtime_error("Hardware breakpoints not supported on macOS ARM64. "
                            "Use SoftwareBreakpoint instead.");
 #else
-  uint64_t address = parseHexAddr(addressStr);
   auto type = parseType(typeStr);
 
   std::lock_guard<std::mutex> lock(g_hwMutex);
 
-  if (g_hwByAddress.count(address))
+  if (g_hwByAddress.count(address->value()))
     throw std::runtime_error("Hardware breakpoint already set at " +
-                             addressStr);
+                             address->toString());
 
   int maxBp = platformMaxBreakpoints();
   if (static_cast<int>(g_hwByAddress.size()) >= maxBp)
@@ -517,7 +517,7 @@ NativeHardwareBreakpoint::set(const std::string &addressStr,
   ensureHwHandlerInstalled();
 
   auto *entry = new HwBreakpointEntry();
-  entry->address = address;
+  entry->address = address->value();
   entry->type = type;
   entry->size = size;
   entry->onHit = std::move(onHit);
@@ -527,7 +527,7 @@ NativeHardwareBreakpoint::set(const std::string &addressStr,
   if (type == HwBpType::Execute) {
     size_t bytesConsumed = 0;
     try {
-      entry->relocatedCode = cr::buildRelocatedCode(address, 1, bytesConsumed);
+      entry->relocatedCode = cr::buildRelocatedCode(address->value(), 1, bytesConsumed);
     } catch (...) {
       delete entry;
       throw;
@@ -546,7 +546,7 @@ NativeHardwareBreakpoint::set(const std::string &addressStr,
   // Set the HW breakpoint using platform API
 #if defined(CHROMATIC_LINUX) || defined(CHROMATIC_ANDROID)
   try {
-    entry->perfFd = linuxSetHwBp(address, type, size);
+    entry->perfFd = linuxSetHwBp(address->value(), type, size);
   } catch (...) {
     if (entry->trampolineCode)
       cr::releaseCode(entry->trampolineCode);
@@ -567,7 +567,7 @@ NativeHardwareBreakpoint::set(const std::string &addressStr,
   }
   entry->slot = slot;
   g_usedSlots |= (1 << slot);
-  darwinSetDebugReg(slot, address, type, size);
+  darwinSetDebugReg(slot, address->value(), type, size);
 #elif defined(CHROMATIC_WINDOWS)
   int slot = findFreeSlot();
   if (slot < 0) {
@@ -580,12 +580,12 @@ NativeHardwareBreakpoint::set(const std::string &addressStr,
   }
   entry->slot = slot;
   g_usedSlots |= (1 << slot);
-  winSetDebugReg(slot, address, type, size);
+  winSetDebugReg(slot, address->value(), type, size);
 #endif
 
   uint64_t bpId = g_nextHwId++;
   g_hwById[bpId] = entry;
-  g_hwByAddress[address] = entry;
+  g_hwByAddress[address->value()] = entry;
 
   return toHexAddr(bpId);
 #endif // !DARWIN ARM64

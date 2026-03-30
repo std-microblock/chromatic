@@ -1,15 +1,17 @@
 #pragma once
+#include "native_pointer.h"
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
 namespace chromatic::js {
 
 struct MemoryAccessDetails {
-  std::string address;   // hex — exact access address
-  std::string pageBase;  // hex — page-aligned base
-  std::string operation; // "read" | "write" | "execute"
-  int rangeIndex;        // which watched range triggered
+  std::shared_ptr<NativePointer> address;  // exact access address
+  std::shared_ptr<NativePointer> pageBase; // page-aligned base
+  std::string operation;                   // "read" | "write" | "execute"
+  int rangeIndex;                          // which watched range triggered
 };
 
 struct NativeMemoryAccessMonitor {
@@ -19,9 +21,12 @@ struct NativeMemoryAccessMonitor {
   /// and the access is recorded.
   /// onAccess fires with (address, pageBase, operation, rangeIndex).
   /// Returns monitorId (hex).
-  static std::string enable(
-      const std::vector<std::string> &addresses, const std::vector<int> &sizes,
-      std::function<void(std::string, std::string, std::string, int)> onAccess);
+  static std::string
+  enable(const std::vector<std::shared_ptr<NativePointer>> &addresses,
+         const std::vector<int> &sizes,
+         std::function<void(std::shared_ptr<NativePointer>,
+                            std::shared_ptr<NativePointer>, std::string, int)>
+             onAccess);
 
   /// Disable monitoring for a specific monitor.
   static void disable(const std::string &monitorId);

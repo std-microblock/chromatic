@@ -1,4 +1,5 @@
 #pragma once
+#include "native_pointer.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -11,49 +12,51 @@ namespace chromatic::js {
 
 /// Result of a pattern scan match.
 struct ScanMatch {
-  std::string address; // hex
+  std::shared_ptr<NativePointer> address;
   int size;
 };
 
 struct NativeMemory {
-  /// Read `size` bytes from `address` (hex string), return hex-encoded data
-  static std::string readMemory(const std::string &address, int size);
+  /// Read `size` bytes from `address`, return as byte vector (→ JS ArrayBuffer)
+  static std::vector<uint8_t> readMemory(std::shared_ptr<NativePointer> address,
+                                         int size);
 
-  /// Like readMemory but returns empty string on access fault instead of
+  /// Like readMemory but returns empty vector on access fault instead of
   /// crashing
-  static std::string safeReadMemory(const std::string &address, int size);
+  static std::vector<uint8_t>
+  safeReadMemory(std::shared_ptr<NativePointer> address, int size);
 
-  /// Write hex-encoded `hexData` to `address`
-  static void writeMemory(const std::string &address,
-                          const std::string &hexData);
+  /// Write bytes to `address`
+  static void writeMemory(std::shared_ptr<NativePointer> address,
+                          std::vector<uint8_t> data);
 
-  /// Allocate `size` bytes of RWX memory, return address as hex string
-  static std::string allocateMemory(int size);
+  /// Allocate `size` bytes of RWX memory, return address
+  static std::shared_ptr<NativePointer> allocateMemory(int size);
 
   /// Free previously allocated memory at `address` of given `size`
-  static void freeMemory(const std::string &address, int size);
+  static void freeMemory(std::shared_ptr<NativePointer> address, int size);
 
   /// Change memory protection. `protection` is like "rwx"/"r-x"/etc.
   /// Returns old protection string.
-  static std::string protectMemory(const std::string &address, int size,
-                                   const std::string &protection);
+  static std::string protectMemory(std::shared_ptr<NativePointer> address,
+                                   int size, const std::string &protection);
 
   /// Write bytes + flush instruction cache (for code patching)
-  static void patchCode(const std::string &address,
-                        const std::string &hexBytes);
+  static void patchCode(std::shared_ptr<NativePointer> address,
+                        std::vector<uint8_t> bytes);
 
   /// Flush instruction cache for region
-  static void flushIcache(const std::string &address, int size);
+  static void flushIcache(std::shared_ptr<NativePointer> address, int size);
 
   /// Copy `size` bytes from `src` to `dst`
-  static void copyMemory(const std::string &dst, const std::string &src,
-                         int size);
+  static void copyMemory(std::shared_ptr<NativePointer> dst,
+                         std::shared_ptr<NativePointer> src, int size);
 
   /// Scan memory region for pattern (e.g. "48 8b ?? 00") using
   /// Boyer-Moore-Horspool with wildcard support.
   /// Returns vector of ScanMatch with address + pattern size.
   static std::vector<std::shared_ptr<ScanMatch>>
-  scanMemory(const std::string &address, int size,
+  scanMemory(std::shared_ptr<NativePointer> address, int size,
              const std::string &pattern);
 
   /// Scan within a named module for pattern.
@@ -63,7 +66,7 @@ struct NativeMemory {
 
   /// Async variant of scanMemory — returns Lazy<T> (→ JS Promise).
   static async_simple::coro::Lazy<std::vector<std::shared_ptr<ScanMatch>>>
-  scanMemoryAsync(const std::string &address, int size,
+  scanMemoryAsync(std::shared_ptr<NativePointer> address, int size,
                   const std::string &pattern);
 
   /// Async variant of scanModule — returns Lazy<T> (→ JS Promise).

@@ -1,4 +1,5 @@
 #include "native_ffi.h"
+#include "native_pointer.h"
 #include <cstdint>
 #include <cstring>
 #include <ffi.h>
@@ -126,12 +127,12 @@ void callbackHandler(ffi_cif *cif, void *ret, void **args, void *userData) {
 
 namespace chromatic::js {
 
-std::string NativeFFI::callFunction(const std::string &address,
+std::string NativeFFI::callFunction(std::shared_ptr<NativePointer> address,
                                     const std::string &retType,
                                     const std::vector<std::string> &argTypes,
                                     const std::vector<std::string> &args,
                                     const std::string &abi) {
-  uint64_t funcAddr = parseHexAddr(address);
+  uint64_t funcAddr = address->value();
 
   size_t nargs = argTypes.size();
   std::vector<ffi_type *> ffiArgTypes(nargs);
@@ -214,7 +215,7 @@ std::string NativeFFI::callFunction(const std::string &address,
       static_cast<int64_t>(static_cast<int32_t>(retVal.u64 & 0xFFFFFFFF)));
 }
 
-std::string NativeFFI::createCallback(
+std::shared_ptr<NativePointer> NativeFFI::createCallback(
     std::function<std::string(std::vector<std::string>)> handler,
     const std::string &retType, const std::vector<std::string> &argTypes,
     const std::string &abi) {
@@ -255,11 +256,11 @@ std::string NativeFFI::createCallback(
     callbacks[addr] = info;
   }
 
-  return toHexAddr(addr);
+  return std::make_shared<NativePointer>(addr);
 }
 
-void NativeFFI::destroyCallback(const std::string &address) {
-  uint64_t addr = parseHexAddr(address);
+void NativeFFI::destroyCallback(std::shared_ptr<NativePointer> address) {
+  uint64_t addr = address->value();
 
   std::lock_guard<std::mutex> lock(callbackMutex);
   auto it = callbacks.find(addr);

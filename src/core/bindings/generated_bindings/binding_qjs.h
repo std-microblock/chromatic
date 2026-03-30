@@ -10,6 +10,64 @@ struct js_bind {
     static void bind(qjs::Context::Module &mod) {}
 };
 
+template<> struct js_bind<chromatic::js::NativePointer> {
+    static void bind(qjs::Context::Module &mod) {
+        using NP = chromatic::js::NativePointer;
+        mod.class_<NP>("NativePointer")
+            .constructor<uint64_t>()
+            // .constructor<std::string>()
+            // Conversion
+            .fun<&NP::toString>("toString")
+            .fun<&NP::toInt32>("toInt32")
+            .fun<&NP::toUInt32>("toUInt32")
+            .fun<&NP::toNumber>("toNumber")
+            .fun<&NP::value>("value")
+            // Comparison
+            .fun<&NP::isNull>("isNull")
+            .fun<&NP::equals>("equals")
+            .fun<&NP::compare>("compare")
+            // Arithmetic
+            .fun<&NP::add>("add")
+            .fun<&NP::sub>("sub")
+            .fun<&NP::and_>("and")
+            .fun<&NP::or_>("or")
+            .fun<&NP::xor_>("xor")
+            .fun<&NP::shr>("shr")
+            .fun<&NP::shl>("shl")
+            .fun<&NP::not_>("not")
+            // Memory Read
+            .fun<&NP::readU8>("readU8")
+            .fun<&NP::readS8>("readS8")
+            .fun<&NP::readU16>("readU16")
+            .fun<&NP::readS16>("readS16")
+            .fun<&NP::readU32>("readU32")
+            .fun<&NP::readS32>("readS32")
+            .fun<&NP::readU64>("readU64")
+            .fun<&NP::readS64>("readS64")
+            .fun<&NP::readFloat>("readFloat")
+            .fun<&NP::readDouble>("readDouble")
+            .fun<&NP::readPointer>("readPointer")
+            .fun<&NP::readByteArray>("readByteArray")
+            .fun<&NP::readCString>("readCString")
+            .fun<&NP::readUtf8String>("readUtf8String")
+            // Memory Write
+            .fun<&NP::writeU8>("writeU8")
+            .fun<&NP::writeS8>("writeS8")
+            .fun<&NP::writeU16>("writeU16")
+            .fun<&NP::writeS16>("writeS16")
+            .fun<&NP::writeU32>("writeU32")
+            .fun<&NP::writeS32>("writeS32")
+            .fun<&NP::writeU64>("writeU64")
+            .fun<&NP::writeS64>("writeS64")
+            .fun<&NP::writeFloat>("writeFloat")
+            .fun<&NP::writeDouble>("writeDouble")
+            .fun<&NP::writePointer>("writePointer")
+            .fun<&NP::writeByteArray>("writeByteArray")
+            .fun<&NP::writeUtf8String>("writeUtf8String")
+        ;
+    }
+};
+
 template <> struct qjs::js_traits<chromatic::js::console> {
     static chromatic::js::console unwrap(JSContext *ctx, JSValueConst v) {
         chromatic::js::console obj;
@@ -90,7 +148,7 @@ template <> struct qjs::js_traits<chromatic::js::InstructionInfo> {
 
         obj.bytes = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "bytes"));
 
-        obj.address = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
+        obj.address = js_traits<std::shared_ptr<chromatic::js::NativePointer>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
 
         obj.groups = js_traits<std::vector<int>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "groups"));
 
@@ -112,7 +170,7 @@ template <> struct qjs::js_traits<chromatic::js::InstructionInfo> {
 
         JS_SetPropertyStr(ctx, obj, "bytes", js_traits<std::string>::wrap(ctx, val.bytes));
 
-        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::string>::wrap(ctx, val.address));
+        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::shared_ptr<chromatic::js::NativePointer>>::wrap(ctx, val.address));
 
         JS_SetPropertyStr(ctx, obj, "groups", js_traits<std::vector<int>>::wrap(ctx, val.groups));
 
@@ -149,7 +207,7 @@ template <> struct qjs::js_traits<chromatic::js::InstructionAnalysis> {
 
         obj.isRelative = js_traits<bool>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "isRelative"));
 
-        obj.target = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "target"));
+        obj.target = js_traits<std::shared_ptr<chromatic::js::NativePointer>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "target"));
 
         obj.isPcRelative = js_traits<bool>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "isPcRelative"));
 
@@ -167,7 +225,7 @@ template <> struct qjs::js_traits<chromatic::js::InstructionAnalysis> {
 
         JS_SetPropertyStr(ctx, obj, "isRelative", js_traits<bool>::wrap(ctx, val.isRelative));
 
-        JS_SetPropertyStr(ctx, obj, "target", js_traits<std::string>::wrap(ctx, val.target));
+        JS_SetPropertyStr(ctx, obj, "target", js_traits<std::shared_ptr<chromatic::js::NativePointer>>::wrap(ctx, val.target));
 
         JS_SetPropertyStr(ctx, obj, "isPcRelative", js_traits<bool>::wrap(ctx, val.isPcRelative));
 
@@ -194,7 +252,7 @@ template <> struct qjs::js_traits<chromatic::js::XrefResult> {
     static chromatic::js::XrefResult unwrap(JSContext *ctx, JSValueConst v) {
         chromatic::js::XrefResult obj;
 
-        obj.address = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
+        obj.address = js_traits<std::shared_ptr<chromatic::js::NativePointer>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
 
         obj.type = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "type"));
 
@@ -206,7 +264,7 @@ template <> struct qjs::js_traits<chromatic::js::XrefResult> {
     static JSValue wrap(JSContext *ctx, const chromatic::js::XrefResult &val) noexcept {
         JSValue obj = JS_NewObject(ctx);
 
-        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::string>::wrap(ctx, val.address));
+        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::shared_ptr<chromatic::js::NativePointer>>::wrap(ctx, val.address));
 
         JS_SetPropertyStr(ctx, obj, "type", js_traits<std::string>::wrap(ctx, val.type));
 
@@ -427,7 +485,7 @@ template <> struct qjs::js_traits<chromatic::js::ScanMatch> {
     static chromatic::js::ScanMatch unwrap(JSContext *ctx, JSValueConst v) {
         chromatic::js::ScanMatch obj;
 
-        obj.address = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
+        obj.address = js_traits<std::shared_ptr<chromatic::js::NativePointer>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
 
         obj.size = js_traits<int>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "size"));
 
@@ -437,7 +495,7 @@ template <> struct qjs::js_traits<chromatic::js::ScanMatch> {
     static JSValue wrap(JSContext *ctx, const chromatic::js::ScanMatch &val) noexcept {
         JSValue obj = JS_NewObject(ctx);
 
-        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::string>::wrap(ctx, val.address));
+        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::shared_ptr<chromatic::js::NativePointer>>::wrap(ctx, val.address));
 
         JS_SetPropertyStr(ctx, obj, "size", js_traits<int>::wrap(ctx, val.size));
 
@@ -492,9 +550,9 @@ template <> struct qjs::js_traits<chromatic::js::MemoryAccessDetails> {
     static chromatic::js::MemoryAccessDetails unwrap(JSContext *ctx, JSValueConst v) {
         chromatic::js::MemoryAccessDetails obj;
 
-        obj.address = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
+        obj.address = js_traits<std::shared_ptr<chromatic::js::NativePointer>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
 
-        obj.pageBase = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "pageBase"));
+        obj.pageBase = js_traits<std::shared_ptr<chromatic::js::NativePointer>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "pageBase"));
 
         obj.operation = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "operation"));
 
@@ -506,9 +564,9 @@ template <> struct qjs::js_traits<chromatic::js::MemoryAccessDetails> {
     static JSValue wrap(JSContext *ctx, const chromatic::js::MemoryAccessDetails &val) noexcept {
         JSValue obj = JS_NewObject(ctx);
 
-        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::string>::wrap(ctx, val.address));
+        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::shared_ptr<chromatic::js::NativePointer>>::wrap(ctx, val.address));
 
-        JS_SetPropertyStr(ctx, obj, "pageBase", js_traits<std::string>::wrap(ctx, val.pageBase));
+        JS_SetPropertyStr(ctx, obj, "pageBase", js_traits<std::shared_ptr<chromatic::js::NativePointer>>::wrap(ctx, val.pageBase));
 
         JS_SetPropertyStr(ctx, obj, "operation", js_traits<std::string>::wrap(ctx, val.operation));
 
@@ -591,7 +649,7 @@ template <> struct qjs::js_traits<chromatic::js::ModuleInfo> {
 
         obj.name = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "name"));
 
-        obj.base = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "base"));
+        obj.base = js_traits<std::shared_ptr<chromatic::js::NativePointer>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "base"));
 
         obj.size = js_traits<int>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "size"));
 
@@ -607,7 +665,7 @@ template <> struct qjs::js_traits<chromatic::js::ModuleInfo> {
 
         JS_SetPropertyStr(ctx, obj, "name", js_traits<std::string>::wrap(ctx, val.name));
 
-        JS_SetPropertyStr(ctx, obj, "base", js_traits<std::string>::wrap(ctx, val.base));
+        JS_SetPropertyStr(ctx, obj, "base", js_traits<std::shared_ptr<chromatic::js::NativePointer>>::wrap(ctx, val.base));
 
         JS_SetPropertyStr(ctx, obj, "size", js_traits<int>::wrap(ctx, val.size));
 
@@ -635,7 +693,7 @@ template <> struct qjs::js_traits<chromatic::js::RangeInfo> {
     static chromatic::js::RangeInfo unwrap(JSContext *ctx, JSValueConst v) {
         chromatic::js::RangeInfo obj;
 
-        obj.base = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "base"));
+        obj.base = js_traits<std::shared_ptr<chromatic::js::NativePointer>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "base"));
 
         obj.size = js_traits<int>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "size"));
 
@@ -649,7 +707,7 @@ template <> struct qjs::js_traits<chromatic::js::RangeInfo> {
     static JSValue wrap(JSContext *ctx, const chromatic::js::RangeInfo &val) noexcept {
         JSValue obj = JS_NewObject(ctx);
 
-        JS_SetPropertyStr(ctx, obj, "base", js_traits<std::string>::wrap(ctx, val.base));
+        JS_SetPropertyStr(ctx, obj, "base", js_traits<std::shared_ptr<chromatic::js::NativePointer>>::wrap(ctx, val.base));
 
         JS_SetPropertyStr(ctx, obj, "size", js_traits<int>::wrap(ctx, val.size));
 
@@ -680,7 +738,7 @@ template <> struct qjs::js_traits<chromatic::js::ExportInfo> {
 
         obj.name = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "name"));
 
-        obj.address = js_traits<std::string>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
+        obj.address = js_traits<std::shared_ptr<chromatic::js::NativePointer>>::unwrap(ctx, JS_GetPropertyStr(ctx, v, "address"));
 
         return obj;
     }
@@ -692,7 +750,7 @@ template <> struct qjs::js_traits<chromatic::js::ExportInfo> {
 
         JS_SetPropertyStr(ctx, obj, "name", js_traits<std::string>::wrap(ctx, val.name));
 
-        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::string>::wrap(ctx, val.address));
+        JS_SetPropertyStr(ctx, obj, "address", js_traits<std::shared_ptr<chromatic::js::NativePointer>>::wrap(ctx, val.address));
 
         return obj;
     }
@@ -773,6 +831,8 @@ template<> struct js_bind<chromatic::js::ScriptLifecycle> {
 };
 
 inline void chromatic_bindAll(qjs::Context::Module &mod) {
+
+    js_bind<chromatic::js::NativePointer>::bind(mod);
 
     js_bind<chromatic::js::console>::bind(mod);
 

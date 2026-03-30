@@ -1,4 +1,5 @@
 #pragma once
+#include "native_pointer.h"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -12,7 +13,7 @@ struct SegmentInfo {
 
 struct ModuleInfo {
   std::string name;
-  std::string base; // hex address
+  std::shared_ptr<NativePointer> base;
   int size;
   std::string path;
   std::vector<SegmentInfo>
@@ -20,7 +21,7 @@ struct ModuleInfo {
 };
 
 struct RangeInfo {
-  std::string base; // hex address
+  std::shared_ptr<NativePointer> base;
   int size;
   std::string protection;
   std::string filePath; // empty if none
@@ -29,7 +30,7 @@ struct RangeInfo {
 struct ExportInfo {
   std::string type;
   std::string name;
-  std::string address; // hex address
+  std::shared_ptr<NativePointer> address;
 };
 
 struct NativeProcess {
@@ -48,8 +49,8 @@ struct NativeProcess {
   /// Returns current process ID
   static int getProcessId();
 
-  /// Returns current thread ID as hex string
-  static std::string getCurrentThreadId();
+  /// Returns current thread ID
+  static std::shared_ptr<NativePointer> getCurrentThreadId();
 
   /// Returns vector of loaded modules
   static std::vector<std::shared_ptr<ModuleInfo>> enumerateModules();
@@ -58,14 +59,14 @@ struct NativeProcess {
   static std::vector<std::shared_ptr<RangeInfo>>
   enumerateRanges(const std::string &protection);
 
-  /// Find export address by module and export name. Returns hex address or
-  /// "0x0".
-  static std::string findExportByName(const std::string &moduleName,
-                                      const std::string &exportName);
+  /// Find export address by module and export name.
+  static std::shared_ptr<NativePointer>
+  findExportByName(const std::string &moduleName,
+                   const std::string &exportName);
 
   /// Find module containing address, or nullptr
   static std::shared_ptr<ModuleInfo>
-  findModuleByAddress(const std::string &address);
+  findModuleByAddress(std::shared_ptr<NativePointer> address);
 
   /// Find module by name, or nullptr
   static std::shared_ptr<ModuleInfo>

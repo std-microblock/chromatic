@@ -1,5 +1,5 @@
-import { NativeMemoryAccessMonitor } from 'chromatic';
-import { NativePointer } from './native-pointer';
+import { NativeMemoryAccessMonitor, NativePointer } from 'chromatic';
+import { ptr } from './native-pointer';
 import type { NativePointerValue } from './types';
 
 export interface MemoryRange {
@@ -40,14 +40,14 @@ export const MemoryAccessMonitor = {
    * @returns A handle with a `disable()` method.
    */
   enable(ranges: MemoryRange[], onAccess: (details: MemoryAccessInfo) => void): MemoryAccessMonitorHandle {
-    const addresses = ranges.map(r => new NativePointer(r.address).toString());
+    const addresses = ranges.map(r => ptr(r.address));
     const sizes = ranges.map(r => r.size);
     const id = NativeMemoryAccessMonitor.enable(addresses, sizes,
-      (addr: string, pageBase: string, op: string, rangeIdx: number) => {
+      (addr: NativePointer, pageBase: NativePointer, op: string, rangeIdx: number) => {
         try {
           onAccess({
-            address: new NativePointer(addr),
-            pageBase: new NativePointer(pageBase),
+            address: addr,
+            pageBase: pageBase,
             operation: op,
             rangeIndex: rangeIdx,
           });

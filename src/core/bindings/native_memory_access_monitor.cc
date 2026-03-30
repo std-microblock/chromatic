@@ -1,4 +1,5 @@
 #include "native_memory_access_monitor.h"
+#include "native_pointer.h"
 #include "native_exception_handler.h"
 
 #include <atomic>
@@ -55,7 +56,7 @@ struct PendingEvent {
 struct MonitorEntry {
   uint64_t id;
   std::vector<WatchedRange> ranges;
-  std::function<void(std::string, std::string, std::string, int)> onAccess;
+  std::function<void(std::shared_ptr<chromatic::js::NativePointer>, std::shared_ptr<chromatic::js::NativePointer>, std::string, int)> onAccess;
   chromatic::js::internal::ExceptionCallbackId segvHandlerId = 0;
   chromatic::js::internal::ExceptionCallbackId busHandlerId = 0;
 };
@@ -187,8 +188,8 @@ monitorSegvHandler(std::shared_ptr<chromatic::js::ExceptionContext> ctx) {
 namespace chromatic::js {
 
 std::string NativeMemoryAccessMonitor::enable(
-    const std::vector<std::string> &addresses, const std::vector<int> &sizes,
-    std::function<void(std::string, std::string, std::string, int)> onAccess) {
+    const std::vector<std::shared_ptr<NativePointer>> &addresses, const std::vector<int> &sizes,
+    std::function<void(std::shared_ptr<NativePointer>, std::shared_ptr<NativePointer>, std::string, int)> onAccess) {
 
   if (addresses.size() != sizes.size())
     throw std::runtime_error(
@@ -206,7 +207,7 @@ std::string NativeMemoryAccessMonitor::enable(
 
   // Set up watched ranges
   for (size_t i = 0; i < addresses.size(); i++) {
-    uint64_t addr = parseHexAddr(addresses[i]);
+    uint64_t addr = addresses[i]->value();
     size_t sz = static_cast<size_t>(sizes[i]);
 
     // Page-align
@@ -321,7 +322,7 @@ int NativeMemoryAccessMonitor::drainPending() {
       if (it != g_monitors.end() && it->second->onAccess) {
         try {
           it->second->onAccess(
-              toHexAddr(entry.faultAddress), toHexAddr(entry.pageBase),
+              std::make_shared<NativePointer>(entry.faultAddress), std::make_shared<NativePointer>(entry.pageBase),
               accessCodeToString(entry.accessTypeCode), entry.rangeIndex);
         } catch (...) {
           // Swallow

@@ -1,4 +1,5 @@
 #include "native_breakpoint.h"
+#include "native_pointer.h"
 #include "internal/code_relocator.h"
 #include "native_exception_handler.h"
 
@@ -122,23 +123,21 @@ namespace chromatic::js {
 namespace cr = ::chromatic::internal; // alias for code_relocator namespace
 
 std::string
-NativeSoftwareBreakpoint::set(const std::string &addressStr,
+NativeSoftwareBreakpoint::set(std::shared_ptr<NativePointer> address,
                               std::function<void(std::string)> onHit) {
-  uint64_t address = parseHexAddr(addressStr);
-
   std::lock_guard<std::mutex> lock(g_bpMutex);
 
-  if (g_bpByAddress.count(address))
+  if (g_bpByAddress.count(address->value()))
     throw std::runtime_error("Software breakpoint already set at " +
-                             addressStr);
+                             address->toString());
 
   ensureHandlerInstalled();
 
   auto *entry = new BreakpointEntry();
-  entry->address = address;
+  entry->address = address->value();
   entry->onHit = std::move(onHit);
 
-  auto *targetPtr = reinterpret_cast<uint8_t *>(address);
+  auto *targetPtr = reinterpret_cast<uint8_t *>(address->value());
 
   // 1. Save original byte(s) at the target
   entry->originalBytes.resize(BP_INSN_SIZE);
@@ -157,7 +156,7 @@ NativeSoftwareBreakpoint::set(const std::string &addressStr,
   size_t bytesConsumed = 0;
   try {
     entry->relocatedCode =
-        cr::buildRelocatedCode(address, BP_INSN_SIZE, bytesConsumed);
+        cr::buildRelocatedCode(address->value(), BP_INSN_SIZE, bytesConsumed);
     entry->originalInsnSize = bytesConsumed;
   } catch (...) {
     delete entry;
@@ -192,7 +191,7 @@ NativeSoftwareBreakpoint::set(const std::string &addressStr,
   // 4. Register
   uint64_t bpId = g_nextBpId++;
   g_bpById[bpId] = entry;
-  g_bpByAddress[address] = entry;
+  g_bpByAddress[address->value()] = entry;
 
   return toHexAddr(bpId);
 }

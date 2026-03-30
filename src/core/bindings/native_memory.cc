@@ -1,4 +1,5 @@
 #include "native_memory.h"
+#include "native_pointer.h"
 #include "native_process.h"
 #include <async_simple/coro/Lazy.h>
 #include <cstdint>
@@ -24,38 +25,6 @@
 #endif
 
 namespace {
-
-uint64_t parseHexAddress(const std::string &s) {
-  return std::stoull(s, nullptr, 16);
-}
-
-std::string toHexAddress(uint64_t addr) {
-  std::ostringstream oss;
-  oss << "0x" << std::hex << addr;
-  return oss.str();
-}
-
-std::string bytesToHex(const uint8_t *data, size_t len) {
-  std::string result;
-  result.reserve(len * 2);
-  static const char hexchars[] = "0123456789abcdef";
-  for (size_t i = 0; i < len; i++) {
-    result.push_back(hexchars[(data[i] >> 4) & 0xF]);
-    result.push_back(hexchars[data[i] & 0xF]);
-  }
-  return result;
-}
-
-std::vector<uint8_t> hexToBytes(const std::string &hex) {
-  std::vector<uint8_t> bytes;
-  bytes.reserve(hex.size() / 2);
-  for (size_t i = 0; i < hex.size(); i += 2) {
-    uint8_t byte =
-        static_cast<uint8_t>(std::stoi(hex.substr(i, 2), nullptr, 16));
-    bytes.push_back(byte);
-  }
-  return bytes;
-}
 
 #ifndef CHROMATIC_WINDOWS
 // Safe memory read support using signal handling
@@ -207,8 +176,11 @@ bmhScan(const uint8_t *haystack, size_t haystackLen, const ParsedPattern &pat) {
       }
     }
     if (match) {
-      results.push_back(std::make_shared<chromatic::js::ScanMatch>(chromatic::js::ScanMatch{toHexAddress(reinterpret_cast<uint64_t>(haystack + i)),
-                         static_cast<int>(m)}));
+      auto matchAddr = reinterpret_cast<uint64_t>(haystack + i);
+      results.push_back(std::make_shared<chromatic::js::ScanMatch>(
+          chromatic::js::ScanMatch{
+              std::make_shared<chromatic::js::NativePointer>(matchAddr),
+              static_cast<int>(m)}));
       // Advance by 1 to find overlapping matches
       i += 1;
     } else {
@@ -222,31 +194,31 @@ bmhScan(const uint8_t *haystack, size_t haystackLen, const ParsedPattern &pat) {
 
 namespace chromatic::js {
 
-std::string NativeMemory::readMemory(const std::string &address, int size) {
-  auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
-  return bytesToHex(addr, static_cast<size_t>(size));
+std::vector<uint8_t> NativeMemory::readMemory(std::shared_ptr<NativePointer> address,
+                                               int size) {
+  auto addr = reinterpret_cast<const uint8_t *>(address->value());
+  return std::vector<uint8_t>(addr, addr + size);
 }
 
-std::string NativeMemory::safeReadMemory(const std::string &address, int size) {
+std::vector<uint8_t> NativeMemory::safeReadMemory(std::shared_ptr<NativePointer> address,
+                                                   int size) {
 #ifdef CHROMATIC_WINDOWS
-  auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
-  std::string result;
+  auto addr = reinterpret_cast<const uint8_t *>(address->value());
 
-  auto readMemory = [&]() -> bool {
+  auto doRead = [&]() -> bool {
     __try {
-      result.resize(size * 2);
-      for (int i = 0; i < size; ++i) {
-        sprintf(&result[i * 2], "%02x", addr[i]);
-      }
       return true;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
       return false;
     }
   };
 
-  return readMemory() ? result : "";
+  if (doRead()) {
+    return std::vector<uint8_t>(addr, addr + size);
+  }
+  return {};
 #else
-  auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
+  auto addr = reinterpret_cast<const uint8_t *>(address->value());
 
   struct sigaction sa, old_sa;
   sa.sa_handler = safe_read_signal_handler;
@@ -257,13 +229,12 @@ std::string NativeMemory::safeReadMemory(const std::string &address, int size) {
   sigaction(SIGBUS, &sa, nullptr);
 
   safe_read_active = true;
-  std::string result;
+  std::vector<uint8_t> result;
 
   if (sigsetjmp(safe_read_jmpbuf, 1) == 0) {
-    result = bytesToHex(addr, static_cast<size_t>(size));
-  } else {
-    result = "";
+    result.assign(addr, addr + size);
   }
+  // On fault, result stays empty
 
   safe_read_active = false;
   sigaction(SIGSEGV, &old_sa, nullptr);
@@ -273,14 +244,13 @@ std::string NativeMemory::safeReadMemory(const std::string &address, int size) {
 #endif
 }
 
-void NativeMemory::writeMemory(const std::string &address,
-                               const std::string &hexData) {
-  auto addr = reinterpret_cast<uint8_t *>(parseHexAddress(address));
-  auto bytes = hexToBytes(hexData);
-  std::memcpy(addr, bytes.data(), bytes.size());
+void NativeMemory::writeMemory(std::shared_ptr<NativePointer> address,
+                               std::vector<uint8_t> data) {
+  auto addr = reinterpret_cast<uint8_t *>(address->value());
+  std::memcpy(addr, data.data(), data.size());
 }
 
-std::string NativeMemory::allocateMemory(int size) {
+std::shared_ptr<NativePointer> NativeMemory::allocateMemory(int size) {
 #ifdef CHROMATIC_WINDOWS
   void *mem = VirtualAlloc(nullptr, static_cast<SIZE_T>(size),
                            MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
@@ -293,11 +263,11 @@ std::string NativeMemory::allocateMemory(int size) {
   if (mem == MAP_FAILED)
     throw std::runtime_error("mmap failed");
 #endif
-  return toHexAddress(reinterpret_cast<uint64_t>(mem));
+  return std::make_shared<NativePointer>(reinterpret_cast<uint64_t>(mem));
 }
 
-void NativeMemory::freeMemory(const std::string &address, int size) {
-  auto addr = reinterpret_cast<void *>(parseHexAddress(address));
+void NativeMemory::freeMemory(std::shared_ptr<NativePointer> address, int size) {
+  auto addr = reinterpret_cast<void *>(address->value());
 #ifdef CHROMATIC_WINDOWS
   (void)size;
   VirtualFree(addr, 0, MEM_RELEASE);
@@ -306,9 +276,10 @@ void NativeMemory::freeMemory(const std::string &address, int size) {
 #endif
 }
 
-std::string NativeMemory::protectMemory(const std::string &address, int size,
+std::string NativeMemory::protectMemory(std::shared_ptr<NativePointer> address,
+                                        int size,
                                         const std::string &protection) {
-  auto addr = reinterpret_cast<void *>(parseHexAddress(address));
+  auto addr = reinterpret_cast<void *>(address->value());
   int newProt = protStringToFlags(protection);
 
 #ifdef CHROMATIC_WINDOWS
@@ -327,10 +298,9 @@ std::string NativeMemory::protectMemory(const std::string &address, int size,
 #endif
 }
 
-void NativeMemory::patchCode(const std::string &address,
-                             const std::string &hexBytes) {
-  auto addr = reinterpret_cast<uint8_t *>(parseHexAddress(address));
-  auto bytes = hexToBytes(hexBytes);
+void NativeMemory::patchCode(std::shared_ptr<NativePointer> address,
+                             std::vector<uint8_t> bytes) {
+  auto addr = reinterpret_cast<uint8_t *>(address->value());
   size_t len = bytes.size();
 
 #ifdef CHROMATIC_WINDOWS
@@ -368,8 +338,8 @@ void NativeMemory::patchCode(const std::string &address,
 #endif
 }
 
-void NativeMemory::flushIcache(const std::string &address, int size) {
-  auto addr = reinterpret_cast<void *>(parseHexAddress(address));
+void NativeMemory::flushIcache(std::shared_ptr<NativePointer> address, int size) {
+  auto addr = reinterpret_cast<void *>(address->value());
 #ifdef CHROMATIC_WINDOWS
   FlushInstructionCache(GetCurrentProcess(), addr, static_cast<SIZE_T>(size));
 #elif defined(CHROMATIC_ARM64)
@@ -383,25 +353,26 @@ void NativeMemory::flushIcache(const std::string &address, int size) {
 #endif
 }
 
-void NativeMemory::copyMemory(const std::string &dst, const std::string &src,
-                              int size) {
-  auto dstAddr = reinterpret_cast<void *>(parseHexAddress(dst));
-  auto srcAddr = reinterpret_cast<const void *>(parseHexAddress(src));
+void NativeMemory::copyMemory(std::shared_ptr<NativePointer> dst,
+                              std::shared_ptr<NativePointer> src, int size) {
+  auto dstAddr = reinterpret_cast<void *>(dst->value());
+  auto srcAddr = reinterpret_cast<const void *>(src->value());
   std::memcpy(dstAddr, srcAddr, static_cast<size_t>(size));
 }
 
 // ─── scanMemory — Boyer-Moore-Horspool with wildcards ─────────────
-std::vector<std::shared_ptr<ScanMatch>> NativeMemory::scanMemory(const std::string &address,
-                                                int size,
-                                                const std::string &pattern) {
-  auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(address));
+std::vector<std::shared_ptr<ScanMatch>>
+NativeMemory::scanMemory(std::shared_ptr<NativePointer> address, int size,
+                         const std::string &pattern) {
+  auto addr = reinterpret_cast<const uint8_t *>(address->value());
   auto pat = parsePattern(pattern);
   return bmhScan(addr, static_cast<size_t>(size), pat);
 }
 
 // ─── scanModule — scan each mapped segment of the module ──────────
-std::vector<std::shared_ptr<ScanMatch>> NativeMemory::scanModule(const std::string &moduleName,
-                                                const std::string &pattern) {
+std::vector<std::shared_ptr<ScanMatch>>
+NativeMemory::scanModule(const std::string &moduleName,
+                         const std::string &pattern) {
   auto mod = NativeProcess::findModuleByName(moduleName);
   if (!mod)
     throw std::runtime_error("Module not found: " + moduleName);
@@ -411,7 +382,7 @@ std::vector<std::shared_ptr<ScanMatch>> NativeMemory::scanModule(const std::stri
 
   if (mod->segments.empty()) {
     // No segment info (Windows / macOS) — the full range is contiguous
-    auto addr = reinterpret_cast<const uint8_t *>(parseHexAddress(mod->base));
+    auto addr = reinterpret_cast<const uint8_t *>(mod->base->value());
     return bmhScan(addr, static_cast<size_t>(mod->size), pat);
   }
 
@@ -426,7 +397,7 @@ std::vector<std::shared_ptr<ScanMatch>> NativeMemory::scanModule(const std::stri
 
 // ─── Async variants — co_return makes Lazy<T> → JS Promise ───────
 async_simple::coro::Lazy<std::vector<std::shared_ptr<ScanMatch>>>
-NativeMemory::scanMemoryAsync(const std::string &address, int size,
+NativeMemory::scanMemoryAsync(std::shared_ptr<NativePointer> address, int size,
                               const std::string &pattern) {
   co_return scanMemory(address, size, pattern);
 }

@@ -1,5 +1,5 @@
-import { NativeProcess } from 'chromatic';
-import { NativePointer } from './native-pointer';
+import { NativeProcess, NativePointer } from 'chromatic';
+import { ptr } from './native-pointer';
 import { Memory } from './memory';
 import { Instruction } from './instruction';
 import type { ModuleInfo, ExportInfo, NativePointerValue, ScanMatch, XrefResult } from './types';
@@ -14,8 +14,8 @@ import type { ModuleInfo, ExportInfo, NativePointerValue, ScanMatch, XrefResult 
 export class Module {
   /** Module short name (e.g. "libfoo.dylib"). */
   name: string;
-  /** Base address of the module in memory (hex string). */
-  base: string;
+  /** Base address of the module in memory. */
+  base: NativePointer;
   /** Size of the module image in bytes. */
   size: number;
   /** Full filesystem path. */
@@ -91,8 +91,8 @@ export class Module {
    */
   static findExportByName(moduleName: string | null, exportName: string): NativePointer | null {
     const addr = NativeProcess.findExportByName(moduleName || '', exportName);
-    if (addr === '0x0') return null;
-    return new NativePointer(addr);
+    if (addr.isNull()) return null;
+    return addr;
   }
 
   /**
@@ -103,7 +103,7 @@ export class Module {
   static findBaseAddress(moduleName: string): NativePointer | null {
     const m = NativeProcess.findModuleByName(moduleName);
     if (!m) return null;
-    return new NativePointer(m.base);
+    return m.base;
   }
 
   /**

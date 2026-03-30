@@ -1,23 +1,13 @@
 #include "native_disassembler.h"
+#include "native_pointer.h"
 #include "native_process.h"
 #include <async_simple/coro/Lazy.h>
 #include <capstone/capstone.h>
 #include <cstdint>
 #include <memory>
-#include <sstream>
 #include <stdexcept>
 
 namespace {
-
-uint64_t parseHexAddr(const std::string &s) {
-  return std::stoull(s, nullptr, 16);
-}
-
-std::string toHexAddr(uint64_t addr) {
-  std::ostringstream oss;
-  oss << "0x" << std::hex << addr;
-  return oss.str();
-}
 
 std::string bytesToHex(const uint8_t *data, size_t len) {
   std::string result;
@@ -65,7 +55,7 @@ std::shared_ptr<chromatic::js::InstructionInfo> insnToInfo(cs_insn *insn) {
   info->opStr = insn->op_str;
   info->size = static_cast<int>(insn->size);
   info->bytes = bytesToHex(insn->bytes, insn->size);
-  info->address = toHexAddr(insn->address);
+  info->address = std::make_shared<chromatic::js::NativePointer>(insn->address);
 
   if (insn->detail) {
     for (uint8_t i = 0; i < insn->detail->groups_count; i++) {
@@ -164,16 +154,16 @@ uint64_t extractTarget(cs_insn *insn, std::string &type) {
 
 namespace chromatic::js {
 
-std::shared_ptr<InstructionInfo> NativeDisassembler::disassembleOne(const std::string &address) {
-  uint64_t addr = parseHexAddr(address);
+std::shared_ptr<InstructionInfo> NativeDisassembler::disassembleOne(std::shared_ptr<NativePointer> address) {
+  uint64_t addr = address->value();
   if (addr == 0)
-    return std::make_shared<InstructionInfo>(InstructionInfo{"", "", 0, "", "0x0", {}, {}, {}});
+    return std::make_shared<InstructionInfo>(InstructionInfo{"", "", 0, "", std::make_shared<NativePointer>(0), {}, {}, {}});
   auto code = reinterpret_cast<const uint8_t *>(addr);
 
   cs_insn *insn;
   size_t count = cs_disasm(cs_handle.handle, code, 16, addr, 1, &insn);
   if (count == 0)
-    return std::make_shared<InstructionInfo>(InstructionInfo{"", "", 0, "", toHexAddr(addr), {}, {}, {}});
+    return std::make_shared<InstructionInfo>(InstructionInfo{"", "", 0, "", std::make_shared<NativePointer>(addr), {}, {}, {}});
 
   auto result = insnToInfo(&insn[0]);
   cs_free(insn, count);
@@ -181,8 +171,8 @@ std::shared_ptr<InstructionInfo> NativeDisassembler::disassembleOne(const std::s
 }
 
 std::vector<std::shared_ptr<InstructionInfo>>
-NativeDisassembler::disassemble(const std::string &address, int count) {
-  uint64_t addr = parseHexAddr(address);
+NativeDisassembler::disassemble(std::shared_ptr<NativePointer> address, int count) {
+  uint64_t addr = address->value();
   if (addr == 0 || count <= 0)
     return {};
   auto code = reinterpret_cast<const uint8_t *>(addr);
@@ -203,16 +193,16 @@ NativeDisassembler::disassemble(const std::string &address, int count) {
 }
 
 std::shared_ptr<InstructionAnalysis>
-NativeDisassembler::analyzeInstruction(const std::string &address) {
-  uint64_t addr = parseHexAddr(address);
+NativeDisassembler::analyzeInstruction(std::shared_ptr<NativePointer> address) {
+  uint64_t addr = address->value();
   if (addr == 0)
-    return std::make_shared<InstructionAnalysis>(InstructionAnalysis{false, false, false, "0x0", false, 0});
+    return std::make_shared<InstructionAnalysis>(InstructionAnalysis{false, false, false, std::make_shared<NativePointer>(0), false, 0});
   auto code = reinterpret_cast<const uint8_t *>(addr);
 
   cs_insn *insn;
   size_t count = cs_disasm(cs_handle.handle, code, 16, addr, 1, &insn);
   if (count == 0)
-    return std::make_shared<InstructionAnalysis>(InstructionAnalysis{false, false, false, "0x0", false, 0});
+    return std::make_shared<InstructionAnalysis>(InstructionAnalysis{false, false, false, std::make_shared<NativePointer>(0), false, 0});
 
   bool isBranch = false;
   bool isCall = false;
@@ -260,16 +250,16 @@ NativeDisassembler::analyzeInstruction(const std::string &address) {
   cs_free(insn, count);
 
   return std::make_shared<InstructionAnalysis>(InstructionAnalysis{isBranch,          isCall,       isRelative,
-                             toHexAddr(target), isPcRelative, size});
+                             std::make_shared<NativePointer>(target), isPcRelative, size});
 }
 
 // ─── findXrefs — scan range for instructions referencing target ────
 std::vector<std::shared_ptr<XrefResult>>
-NativeDisassembler::findXrefs(const std::string &rangeStart, int rangeSize,
-                              const std::string &targetAddr) {
+NativeDisassembler::findXrefs(std::shared_ptr<NativePointer> rangeStart, int rangeSize,
+                              std::shared_ptr<NativePointer> targetAddr) {
   std::vector<std::shared_ptr<XrefResult>> results;
-  uint64_t start = parseHexAddr(rangeStart);
-  uint64_t target = parseHexAddr(targetAddr);
+  uint64_t start = rangeStart->value();
+  uint64_t target = targetAddr->value();
   if (start == 0 || target == 0 || rangeSize <= 0)
     return results;
   auto code = reinterpret_cast<const uint8_t *>(start);
@@ -299,7 +289,7 @@ NativeDisassembler::findXrefs(const std::string &rangeStart, int rangeSize,
 
     if (insnTarget == target) {
       results.push_back(std::make_shared<XrefResult>(
-          XrefResult{toHexAddr(insn->address), xrefType, static_cast<int>(insn->size)}));
+          XrefResult{std::make_shared<NativePointer>(insn->address), xrefType, static_cast<int>(insn->size)}));
     }
 
     offset += insn->size;
@@ -312,7 +302,7 @@ NativeDisassembler::findXrefs(const std::string &rangeStart, int rangeSize,
 // ─── findXrefsInModule — look up module, delegate ──────────────────
 std::vector<std::shared_ptr<XrefResult>>
 NativeDisassembler::findXrefsInModule(const std::string &moduleName,
-                                      const std::string &targetAddr) {
+                                      std::shared_ptr<NativePointer> targetAddr) {
   auto mod = NativeProcess::findModuleByName(moduleName);
   if (!mod)
     throw std::runtime_error("Module not found: " + moduleName);
@@ -321,22 +311,22 @@ NativeDisassembler::findXrefsInModule(const std::string &moduleName,
 
 // ─── findXrefs async variants ─────────────────────────────────────
 async_simple::coro::Lazy<std::vector<std::shared_ptr<XrefResult>>>
-NativeDisassembler::findXrefsAsync(const std::string &rangeStart, int rangeSize,
-                                   const std::string &targetAddr) {
+NativeDisassembler::findXrefsAsync(std::shared_ptr<NativePointer> rangeStart, int rangeSize,
+                                   std::shared_ptr<NativePointer> targetAddr) {
   co_return findXrefs(rangeStart, rangeSize, targetAddr);
 }
 
 async_simple::coro::Lazy<std::vector<std::shared_ptr<XrefResult>>>
 NativeDisassembler::findXrefsInModuleAsync(const std::string &moduleName,
-                                           const std::string &targetAddr) {
+                                           std::shared_ptr<NativePointer> targetAddr) {
   co_return findXrefsInModule(moduleName, targetAddr);
 }
 
 // ─── filterInstructions — iterate + JS callback filter ─────────────
 std::vector<std::shared_ptr<InstructionInfo>> NativeDisassembler::filterInstructions(
-    const std::string &address, int count,
+    std::shared_ptr<NativePointer> address, int count,
     std::function<bool(std::shared_ptr<InstructionInfo>)> filter) {
-  uint64_t addr = parseHexAddr(address);
+  uint64_t addr = address->value();
   if (addr == 0 || count <= 0)
     return {};
   auto code = reinterpret_cast<const uint8_t *>(addr);
@@ -369,7 +359,7 @@ std::vector<std::shared_ptr<InstructionInfo>> NativeDisassembler::filterInstruct
 // ─── filterInstructions async variant ──────────────────────────────
 async_simple::coro::Lazy<std::vector<std::shared_ptr<InstructionInfo>>>
 NativeDisassembler::filterInstructionsAsync(
-    const std::string &address, int count,
+    std::shared_ptr<NativePointer> address, int count,
     std::function<bool(std::shared_ptr<InstructionInfo>)> filter) {
   co_return filterInstructions(address, count, std::move(filter));
 }

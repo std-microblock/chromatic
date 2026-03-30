@@ -1,5 +1,7 @@
 // Shared types for the Chromatic instrumentation framework
 
+import type { NativePointer } from 'chromatic';
+
 export type NativePointerValue = NativePointer | string | number | bigint;
 
 export type NativeType =
@@ -45,15 +47,15 @@ export interface X64CpuContext extends CpuContext {
 
 export interface ModuleInfo {
   name: string;
-  /** Hex address string (e.g. "0x100000"). */
-  base: string;
+  /** NativePointer to module base address. */
+  base: NativePointer;
   size: number;
   path: string;
 }
 
 export interface RangeInfo {
-  /** Hex address string. */
-  base: string;
+  /** NativePointer to range base. */
+  base: NativePointer;
   size: number;
   protection: string;
   filePath: string;
@@ -62,13 +64,13 @@ export interface RangeInfo {
 export interface ExportInfo {
   type: string;
   name: string;
-  /** Hex address string. */
-  address: string;
+  /** NativePointer to export address. */
+  address: NativePointer;
 }
 
 export interface InstructionInfo {
-  /** Hex address string. */
-  address: string;
+  /** NativePointer to instruction address. */
+  address: NativePointer;
   mnemonic: string;
   opStr: string;
   size: number;
@@ -81,16 +83,16 @@ export interface InstructionInfo {
 
 /** Result of a memory pattern scan match. */
 export interface ScanMatch {
-  /** Hex address string. */
-  address: string;
+  /** NativePointer to match address. */
+  address: NativePointer;
   /** Size of the matched pattern in bytes. */
   size: number;
 }
 
 /** Result of a cross-reference (xref) search. */
 export interface XrefResult {
-  /** Hex address string of the referring instruction. */
-  address: string;
+  /** NativePointer to the referring instruction's address. */
+  address: NativePointer;
   /** Type of reference: "call", "branch", or "data". */
   type: string;
   /** Size of the referring instruction in bytes. */
@@ -102,8 +104,8 @@ export interface InstructionAnalysis {
   isBranch: boolean;
   isCall: boolean;
   isRelative: boolean;
-  /** Hex address string of the branch/call target. */
-  target: string;
+  /** NativePointer to the branch/call target. */
+  target: NativePointer;
   isPcRelative: boolean;
   size: number;
 }
@@ -130,6 +132,3 @@ export interface InvocationCallbacks {
 export interface InvocationListener {
   detach(): void;
 }
-
-// Forward declaration for NativePointer to resolve circular dependency
-import type { NativePointer } from './native-pointer';
