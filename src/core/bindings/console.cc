@@ -4,6 +4,11 @@
 #include <fmt/color.h>
 #include <fmt/core.h>
 #include <unordered_map>
+#include <vector>
+
+#ifdef __ANDROID__
+#include <android/log.h>
+#endif
 
 namespace {
 thread_local int current_group_depth = 0;
@@ -14,43 +19,52 @@ thread_local std::unordered_map<std::string, unsigned long long> counters;
 
 std::string get_indent() { return std::string(current_group_depth * 2, ' '); }
 
-void print_styled(FILE *out, const std::string &prefix,
+void print_styled(bool is_stderr, const std::string &prefix,
                   const std::string &message,
                   fmt::text_style style = fmt::text_style()) {
-  fmt::print(out, style, "{}{}{}\n", get_indent(), prefix, message);
+  auto res = fmt::format(style, "{}{}{}\n", get_indent(), prefix, message);
+#ifdef _WIN32
+  OutputDebugStringA(res.c_str());
+  fmt::print(is_stderr ? stderr : stdout, "{}", res);
+#elif defined(__ANDROID__)
+  __android_log_write(is_stderr ? ANDROID_LOG_ERROR : ANDROID_LOG_INFO,
+                      "chromatic", res.c_str());
+#else
+  fmt::print(is_stderr ? stderr : stdout, "{}", res);
+#endif
 }
 } // namespace
 
 namespace chromatic::js {
 
 void console::log(const std::string &message) {
-  print_styled(stdout, "", message);
+  print_styled(false, "", message);
 }
 
 void console::error(const std::string &message) {
-  print_styled(stderr, "✖ ", message,
+  print_styled(true, "✖ ", message,
                fmt::fg(fmt::color::red) | fmt::emphasis::bold);
 }
 
 void console::warn(const std::string &message) {
-  print_styled(stderr, "⚠ ", message,
+  print_styled(true, "⚠ ", message,
                fmt::fg(fmt::color::yellow) | fmt::emphasis::bold);
 }
 
 void console::info(const std::string &message) {
-  print_styled(stdout, "ℹ ", message, fmt::fg(fmt::color::cyan));
+  print_styled(false, "ℹ ", message, fmt::fg(fmt::color::cyan));
 }
 
 void console::debug(const std::string &message) {
-  print_styled(stdout, "▶ ", message, fmt::fg(fmt::color::gray));
+  print_styled(false, "▶ ", message, fmt::fg(fmt::color::gray));
 }
 
 void console::trace(const std::string &message) {
-  print_styled(stdout, "Trace: ", message, fmt::fg(fmt::color::magenta));
+  print_styled(false, "Trace: ", message, fmt::fg(fmt::color::magenta));
 }
 
 void console::group(const std::string &message) {
-  print_styled(stdout, "▼ ", message, fmt::emphasis::bold);
+  print_styled(false, "▼ ", message, fmt::emphasis::bold);
   current_group_depth++;
 }
 
@@ -84,7 +98,7 @@ void console::timeEnd(const std::string &message) {
   auto end = std::chrono::high_resolution_clock::now();
   auto duration =
       std::chrono::duration<double, std::milli>(end - it->second).count();
-  print_styled(stdout, "", fmt::format("{}: {} ms", label, duration));
+  print_styled(false, "", fmt::format("{}: {} ms", label, duration));
   timers.erase(it);
 }
 
@@ -98,13 +112,13 @@ void console::timeLog(const std::string &message) {
   auto end = std::chrono::high_resolution_clock::now();
   auto duration =
       std::chrono::duration<double, std::milli>(end - it->second).count();
-  print_styled(stdout, "", fmt::format("{}: {} ms", label, duration));
+  print_styled(false, "", fmt::format("{}: {} ms", label, duration));
 }
 
 void console::count(const std::string &message) {
   const std::string label = message.empty() ? "default" : message;
   auto val = ++counters[label];
-  print_styled(stdout, "", fmt::format("{}: {}", label, val));
+  print_styled(false, "", fmt::format("{}: {}", label, val));
 }
 
 void console::countReset(const std::string &message) {
@@ -119,26 +133,26 @@ void console::dir(const std::string &message) { log(message); }
 void console::dirxml(const std::string &message) { log(message); }
 
 void console::profile(const std::string &message) {
-  print_styled(stdout, "Profile: ", message + " started",
+  print_styled(false, "Profile: ", message + " started",
                fmt::fg(fmt::color::light_green));
 }
 
 void console::profileEnd(const std::string &message) {
-  print_styled(stdout, "Profile: ", message + " ended",
+  print_styled(false, "Profile: ", message + " ended",
                fmt::fg(fmt::color::light_green));
 }
 
 void console::timeStamp(const std::string &message) {
-  print_styled(stdout, "TimeStamp: ", message, fmt::fg(fmt::color::light_blue));
+  print_styled(false, "TimeStamp: ", message, fmt::fg(fmt::color::light_blue));
 }
 
 void console::timeline(const std::string &message) {
-  print_styled(stdout, "Timeline: ", message + " started",
+  print_styled(false, "Timeline: ", message + " started",
                fmt::fg(fmt::color::light_blue));
 }
 
 void console::timelineEnd(const std::string &message) {
-  print_styled(stdout, "Timeline: ", message + " ended",
+  print_styled(false, "Timeline: ", message + " ended",
                fmt::fg(fmt::color::light_blue));
 }
 

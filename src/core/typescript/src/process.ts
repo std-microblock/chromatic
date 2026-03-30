@@ -1,6 +1,7 @@
 import { NativeProcess as NP } from 'chromatic';
 import { NativePointer } from './native-pointer';
 import type { ModuleInfo, RangeInfo } from './types';
+import { Module } from './module';
 
 /**
  * Process — provides information about the current process.
@@ -78,34 +79,34 @@ export const Process = {
    * Find the module that contains the given address.
    *
    * @param address - A memory address to look up.
-   * @returns {@link ModuleInfo} if found, or `null`.
+   * @returns {@link Module} if found, or `null`.
    */
-  findModuleByAddress(address: NativePointer | string): ModuleInfo | null {
+  findModuleByAddress(address: NativePointer | string): Module | null {
     const ptr = new NativePointer(address);
     const m = NP.findModuleByAddress(ptr.toString());
     if (!m) return null;
-    return {
+    return new Module({
       name: m.name,
       base: new NativePointer(m.base),
       size: m.size,
       path: m.path
-    };
+    });
   },
 
   /**
    * Find a loaded module by its short name.
    *
    * @param name - Module name (e.g. `"libSystem.B.dylib"`).
-   * @returns {@link ModuleInfo} if found, or `null`.
+   * @returns {@link Module} if found, or `null`.
    */
-  findModuleByName(name: string): ModuleInfo | null {
+  findModuleByName(name: string): Module | null {
     const m = NP.findModuleByName(name);
     if (!m) return null;
-    return {
+    return new Module({
       name: m.name,
       base: new NativePointer(m.base),
       size: m.size,
       path: m.path
-    };
+    });
   }
 };
