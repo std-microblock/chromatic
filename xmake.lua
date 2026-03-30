@@ -4,6 +4,8 @@ add_rules("plugin.compile_commands.autoupdate", {outputdir = "build"})
 set_languages("c++23")
 
 includes("deps/breeze-js.lua")
+includes("deps/yalantinglibs.lua")
+
 add_requires("breeze-js-runtime")
 add_requires("capstone", "fmt", "libffi", "asmjit", "gtest")
 add_requires("xz", "reflect-cpp")
