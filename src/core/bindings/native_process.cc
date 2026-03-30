@@ -4,9 +4,10 @@
 #include <sstream>
 
 #ifdef CHROMATIC_WINDOWS
+#include <windows.h>
+
 #include <dbghelp.h>
 #include <psapi.h>
-#include <windows.h>
 #else
 #include <dlfcn.h>
 #include <pthread.h>
