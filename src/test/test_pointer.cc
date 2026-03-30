@@ -44,11 +44,11 @@ TEST_F(ChromaticTest, NativePointer_Bitwise) {
     (() => {
       const a = new NativePointer(0xFF00);
       const b = new NativePointer(0x0FF0);
-      const andR = a.and(b);
+      const andR = a.bitwiseAnd(b);
       if (andR.toUInt32() !== 0x0F00) throw new Error('and: 0x' + andR.toUInt32().toString(16));
-      const orR = a.or(b);
+      const orR = a.bitwiseOr(b);
       if (orR.toUInt32() !== 0xFFF0) throw new Error('or: 0x' + orR.toUInt32().toString(16));
-      const xorR = a.xor(b);
+      const xorR = a.bitwiseXor(b);
       if (xorR.toUInt32() !== 0xF0F0) throw new Error('xor: 0x' + xorR.toUInt32().toString(16));
     })()
   )"));

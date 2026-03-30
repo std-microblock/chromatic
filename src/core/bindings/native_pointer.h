@@ -7,15 +7,15 @@
 namespace chromatic::js {
 
 class NativePointer : public std::enable_shared_from_this<NativePointer> {
-  uint64_t addr_;
+  uint64_t $addr;
 
 public:
-  NativePointer() : addr_(0) {}
-  explicit NativePointer(uint64_t addr) : addr_(addr) {}
+  explicit NativePointer(uint64_t addr) : $addr(addr) {}
+  NativePointer() : $addr(0) {}
   explicit NativePointer(const std::string &hex);
 
   /// Raw address value.
-  uint64_t value() const { return addr_; }
+  uint64_t value() const { return $addr; }
 
   // ---- Conversion ----
 
@@ -39,12 +39,12 @@ public:
 
   std::shared_ptr<NativePointer> add(int64_t rhs) const;
   std::shared_ptr<NativePointer> sub(int64_t rhs) const;
-  std::shared_ptr<NativePointer> and_(std::shared_ptr<NativePointer> rhs) const;
-  std::shared_ptr<NativePointer> or_(std::shared_ptr<NativePointer> rhs) const;
-  std::shared_ptr<NativePointer> xor_(std::shared_ptr<NativePointer> rhs) const;
+  std::shared_ptr<NativePointer> bitwiseAnd(std::shared_ptr<NativePointer> rhs) const;
+  std::shared_ptr<NativePointer> bitwiseOr(std::shared_ptr<NativePointer> rhs) const;
+  std::shared_ptr<NativePointer> bitwiseXor(std::shared_ptr<NativePointer> rhs) const;
   std::shared_ptr<NativePointer> shr(int n) const;
   std::shared_ptr<NativePointer> shl(int n) const;
-  std::shared_ptr<NativePointer> not_() const;
+  std::shared_ptr<NativePointer> bitwiseNot() const;
 
   // ---- Memory Read ----
 

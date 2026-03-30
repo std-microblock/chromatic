@@ -10,61 +10,67 @@ struct js_bind {
     static void bind(qjs::Context::Module &mod) {}
 };
 
+template <> struct qjs::js_traits<chromatic::js::NativePointer> {
+    static chromatic::js::NativePointer unwrap(JSContext *ctx, JSValueConst v) {
+        chromatic::js::NativePointer obj;
+
+        return obj;
+    }
+
+    static JSValue wrap(JSContext *ctx, const chromatic::js::NativePointer &val) noexcept {
+        JSValue obj = JS_NewObject(ctx);
+
+        return obj;
+    }
+};
 template<> struct js_bind<chromatic::js::NativePointer> {
     static void bind(qjs::Context::Module &mod) {
-        using NP = chromatic::js::NativePointer;
-        mod.class_<NP>("NativePointer")
+        mod.class_<chromatic::js::NativePointer>("NativePointer")
             .constructor<uint64_t>()
-            // .constructor<std::string>()
-            // Conversion
-            .fun<&NP::toString>("toString")
-            .fun<&NP::toInt32>("toInt32")
-            .fun<&NP::toUInt32>("toUInt32")
-            .fun<&NP::toNumber>("toNumber")
-            .fun<&NP::value>("value")
-            // Comparison
-            .fun<&NP::isNull>("isNull")
-            .fun<&NP::equals>("equals")
-            .fun<&NP::compare>("compare")
-            // Arithmetic
-            .fun<&NP::add>("add")
-            .fun<&NP::sub>("sub")
-            .fun<&NP::and_>("and")
-            .fun<&NP::or_>("or")
-            .fun<&NP::xor_>("xor")
-            .fun<&NP::shr>("shr")
-            .fun<&NP::shl>("shl")
-            .fun<&NP::not_>("not")
-            // Memory Read
-            .fun<&NP::readU8>("readU8")
-            .fun<&NP::readS8>("readS8")
-            .fun<&NP::readU16>("readU16")
-            .fun<&NP::readS16>("readS16")
-            .fun<&NP::readU32>("readU32")
-            .fun<&NP::readS32>("readS32")
-            .fun<&NP::readU64>("readU64")
-            .fun<&NP::readS64>("readS64")
-            .fun<&NP::readFloat>("readFloat")
-            .fun<&NP::readDouble>("readDouble")
-            .fun<&NP::readPointer>("readPointer")
-            .fun<&NP::readByteArray>("readByteArray")
-            .fun<&NP::readCString>("readCString")
-            .fun<&NP::readUtf8String>("readUtf8String")
-            // Memory Write
-            .fun<&NP::writeU8>("writeU8")
-            .fun<&NP::writeS8>("writeS8")
-            .fun<&NP::writeU16>("writeU16")
-            .fun<&NP::writeS16>("writeS16")
-            .fun<&NP::writeU32>("writeU32")
-            .fun<&NP::writeS32>("writeS32")
-            .fun<&NP::writeU64>("writeU64")
-            .fun<&NP::writeS64>("writeS64")
-            .fun<&NP::writeFloat>("writeFloat")
-            .fun<&NP::writeDouble>("writeDouble")
-            .fun<&NP::writePointer>("writePointer")
-            .fun<&NP::writeByteArray>("writeByteArray")
-            .fun<&NP::writeUtf8String>("writeUtf8String")
-        ;
+                .fun<&chromatic::js::NativePointer::value>("value")
+                .fun<&chromatic::js::NativePointer::toString>("toString")
+                .fun<&chromatic::js::NativePointer::toInt32>("toInt32")
+                .fun<&chromatic::js::NativePointer::toUInt32>("toUInt32")
+                .fun<&chromatic::js::NativePointer::toNumber>("toNumber")
+                .fun<&chromatic::js::NativePointer::isNull>("isNull")
+                .fun<&chromatic::js::NativePointer::equals>("equals")
+                .fun<&chromatic::js::NativePointer::compare>("compare")
+                .fun<&chromatic::js::NativePointer::add>("add")
+                .fun<&chromatic::js::NativePointer::sub>("sub")
+                .fun<&chromatic::js::NativePointer::bitwiseAnd>("bitwiseAnd")
+                .fun<&chromatic::js::NativePointer::bitwiseOr>("bitwiseOr")
+                .fun<&chromatic::js::NativePointer::bitwiseXor>("bitwiseXor")
+                .fun<&chromatic::js::NativePointer::shr>("shr")
+                .fun<&chromatic::js::NativePointer::shl>("shl")
+                .fun<&chromatic::js::NativePointer::bitwiseNot>("bitwiseNot")
+                .fun<&chromatic::js::NativePointer::readU8>("readU8")
+                .fun<&chromatic::js::NativePointer::readS8>("readS8")
+                .fun<&chromatic::js::NativePointer::readU16>("readU16")
+                .fun<&chromatic::js::NativePointer::readS16>("readS16")
+                .fun<&chromatic::js::NativePointer::readU32>("readU32")
+                .fun<&chromatic::js::NativePointer::readS32>("readS32")
+                .fun<&chromatic::js::NativePointer::readU64>("readU64")
+                .fun<&chromatic::js::NativePointer::readS64>("readS64")
+                .fun<&chromatic::js::NativePointer::readFloat>("readFloat")
+                .fun<&chromatic::js::NativePointer::readDouble>("readDouble")
+                .fun<&chromatic::js::NativePointer::readPointer>("readPointer")
+                .fun<&chromatic::js::NativePointer::readByteArray>("readByteArray")
+                .fun<&chromatic::js::NativePointer::readCString>("readCString")
+                .fun<&chromatic::js::NativePointer::readUtf8String>("readUtf8String")
+                .fun<&chromatic::js::NativePointer::writeU8>("writeU8")
+                .fun<&chromatic::js::NativePointer::writeS8>("writeS8")
+                .fun<&chromatic::js::NativePointer::writeU16>("writeU16")
+                .fun<&chromatic::js::NativePointer::writeS16>("writeS16")
+                .fun<&chromatic::js::NativePointer::writeU32>("writeU32")
+                .fun<&chromatic::js::NativePointer::writeS32>("writeS32")
+                .fun<&chromatic::js::NativePointer::writeU64>("writeU64")
+                .fun<&chromatic::js::NativePointer::writeS64>("writeS64")
+                .fun<&chromatic::js::NativePointer::writeFloat>("writeFloat")
+                .fun<&chromatic::js::NativePointer::writeDouble>("writeDouble")
+                .fun<&chromatic::js::NativePointer::writePointer>("writePointer")
+                .fun<&chromatic::js::NativePointer::writeByteArray>("writeByteArray")
+                .fun<&chromatic::js::NativePointer::writeUtf8String>("writeUtf8String")
+            ;
     }
 };
 
@@ -184,7 +190,7 @@ template <> struct qjs::js_traits<chromatic::js::InstructionInfo> {
 template<> struct js_bind<chromatic::js::InstructionInfo> {
     static void bind(qjs::Context::Module &mod) {
         mod.class_<chromatic::js::InstructionInfo>("InstructionInfo")
-            .constructor<>()
+            .constructor<chromatic::js::InstructionInfo>()
                 .fun<&chromatic::js::InstructionInfo::mnemonic>("mnemonic")
                 .fun<&chromatic::js::InstructionInfo::opStr>("opStr")
                 .fun<&chromatic::js::InstructionInfo::size>("size")
@@ -237,7 +243,7 @@ template <> struct qjs::js_traits<chromatic::js::InstructionAnalysis> {
 template<> struct js_bind<chromatic::js::InstructionAnalysis> {
     static void bind(qjs::Context::Module &mod) {
         mod.class_<chromatic::js::InstructionAnalysis>("InstructionAnalysis")
-            .constructor<>()
+            .constructor<chromatic::js::InstructionAnalysis>()
                 .fun<&chromatic::js::InstructionAnalysis::isBranch>("isBranch")
                 .fun<&chromatic::js::InstructionAnalysis::isCall>("isCall")
                 .fun<&chromatic::js::InstructionAnalysis::isRelative>("isRelative")
@@ -276,7 +282,7 @@ template <> struct qjs::js_traits<chromatic::js::XrefResult> {
 template<> struct js_bind<chromatic::js::XrefResult> {
     static void bind(qjs::Context::Module &mod) {
         mod.class_<chromatic::js::XrefResult>("XrefResult")
-            .constructor<>()
+            .constructor<chromatic::js::XrefResult>()
                 .fun<&chromatic::js::XrefResult::address>("address")
                 .fun<&chromatic::js::XrefResult::type>("type")
                 .fun<&chromatic::js::XrefResult::size>("size")
@@ -505,7 +511,7 @@ template <> struct qjs::js_traits<chromatic::js::ScanMatch> {
 template<> struct js_bind<chromatic::js::ScanMatch> {
     static void bind(qjs::Context::Module &mod) {
         mod.class_<chromatic::js::ScanMatch>("ScanMatch")
-            .constructor<>()
+            .constructor<chromatic::js::ScanMatch>()
                 .fun<&chromatic::js::ScanMatch::address>("address")
                 .fun<&chromatic::js::ScanMatch::size>("size")
             ;
@@ -578,7 +584,7 @@ template <> struct qjs::js_traits<chromatic::js::MemoryAccessDetails> {
 template<> struct js_bind<chromatic::js::MemoryAccessDetails> {
     static void bind(qjs::Context::Module &mod) {
         mod.class_<chromatic::js::MemoryAccessDetails>("MemoryAccessDetails")
-            .constructor<>()
+            .constructor<chromatic::js::MemoryAccessDetails>()
                 .fun<&chromatic::js::MemoryAccessDetails::address>("address")
                 .fun<&chromatic::js::MemoryAccessDetails::pageBase>("pageBase")
                 .fun<&chromatic::js::MemoryAccessDetails::operation>("operation")
@@ -679,7 +685,7 @@ template <> struct qjs::js_traits<chromatic::js::ModuleInfo> {
 template<> struct js_bind<chromatic::js::ModuleInfo> {
     static void bind(qjs::Context::Module &mod) {
         mod.class_<chromatic::js::ModuleInfo>("ModuleInfo")
-            .constructor<>()
+            .constructor<chromatic::js::ModuleInfo>()
                 .fun<&chromatic::js::ModuleInfo::name>("name")
                 .fun<&chromatic::js::ModuleInfo::base>("base")
                 .fun<&chromatic::js::ModuleInfo::size>("size")
@@ -721,7 +727,7 @@ template <> struct qjs::js_traits<chromatic::js::RangeInfo> {
 template<> struct js_bind<chromatic::js::RangeInfo> {
     static void bind(qjs::Context::Module &mod) {
         mod.class_<chromatic::js::RangeInfo>("RangeInfo")
-            .constructor<>()
+            .constructor<chromatic::js::RangeInfo>()
                 .fun<&chromatic::js::RangeInfo::base>("base")
                 .fun<&chromatic::js::RangeInfo::size>("size")
                 .fun<&chromatic::js::RangeInfo::protection>("protection")
@@ -758,7 +764,7 @@ template <> struct qjs::js_traits<chromatic::js::ExportInfo> {
 template<> struct js_bind<chromatic::js::ExportInfo> {
     static void bind(qjs::Context::Module &mod) {
         mod.class_<chromatic::js::ExportInfo>("ExportInfo")
-            .constructor<>()
+            .constructor<chromatic::js::ExportInfo>()
                 .fun<&chromatic::js::ExportInfo::type>("type")
                 .fun<&chromatic::js::ExportInfo::name>("name")
                 .fun<&chromatic::js::ExportInfo::address>("address")

@@ -4,28 +4,98 @@
 declare module 'chromatic' {
 
 export class NativePointer {
-	constructor(addr: number)
-	// Conversion
-	toString(): string
-	toInt32(): number
-	toUInt32(): number
-	toNumber(): number
-	value(): number
-	// Comparison
-	isNull(): boolean
-	equals(other: NativePointer): boolean
-	compare(other: NativePointer): number
-	// Arithmetic
-	add(rhs: number): NativePointer
-	sub(rhs: number): NativePointer
-	and(rhs: NativePointer): NativePointer
-	or(rhs: NativePointer): NativePointer
-	xor(rhs: NativePointer): NativePointer
-	shr(n: number): NativePointer
-	shl(n: number): NativePointer
-	not(): NativePointer
-	// Memory Read
-	readU8(): number
+	constructor(addr: number);
+	/**
+     *  Raw address value.
+      @returns number
+     */
+    value(): number
+	/**
+     *  Return "0x" + hex representation.
+      @returns string
+     */
+    toString(): string
+	/**
+     *  Truncate to signed 32-bit integer.
+      @returns number
+     */
+    toInt32(): number
+	/**
+     *  Truncate to unsigned 32-bit integer.
+      @returns number
+     */
+    toUInt32(): number
+	/**
+     *  Convert to double (may lose precision for large addresses).
+      @returns number
+     */
+    toNumber(): number
+	/**
+     *  ---- Comparison ----
+      @returns boolean
+     */
+    isNull(): boolean
+	/**
+     * 
+     * @param other: NativePointer
+     * @returns boolean
+     */
+    equals(other: NativePointer): boolean
+	/**
+     * 
+     * @param other: NativePointer
+     * @returns number
+     */
+    compare(other: NativePointer): number
+	/**
+     *  ---- Arithmetic ----
+     *  All return a new NativePointer.
+     * @param rhs: number
+     * @returns NativePointer
+     */
+    add(rhs: number): NativePointer
+	/**
+     * 
+     * @param rhs: number
+     * @returns NativePointer
+     */
+    sub(rhs: number): NativePointer
+	/**
+     * 
+     * @param rhs: NativePointer
+     * @returns NativePointer
+     */
+    bitwiseAnd(rhs: NativePointer): NativePointer
+	/**
+     * 
+     * @param rhs: NativePointer
+     * @returns NativePointer
+     */
+    bitwiseOr(rhs: NativePointer): NativePointer
+	/**
+     * 
+     * @param rhs: NativePointer
+     * @returns NativePointer
+     */
+    bitwiseXor(rhs: NativePointer): NativePointer
+	/**
+     * 
+     * @param n: number
+     * @returns NativePointer
+     */
+    shr(n: number): NativePointer
+	/**
+     * 
+     * @param n: number
+     * @returns NativePointer
+     */
+    shl(n: number): NativePointer
+	bitwiseNot(): NativePointer
+	/**
+     *  ---- Memory Read ----
+      @returns number
+     */
+    readU8(): number
 	readS8(): number
 	readU16(): number
 	readS16(): number
@@ -36,154 +106,236 @@ export class NativePointer {
 	readFloat(): number
 	readDouble(): number
 	readPointer(): NativePointer
-	readByteArray(length: number): ArrayBuffer
-	readCString(maxLength: number): string
-	readUtf8String(maxLength: number): string
-	// Memory Write
-	writeU8(v: number): NativePointer
-	writeS8(v: number): NativePointer
-	writeU16(v: number): NativePointer
-	writeS16(v: number): NativePointer
-	writeU32(v: number): NativePointer
-	writeS32(v: number): NativePointer
-	writeU64(v: number): NativePointer
-	writeS64(v: number): NativePointer
-	writeFloat(v: number): NativePointer
-	writeDouble(v: number): NativePointer
-	writePointer(v: NativePointer): NativePointer
-	writeByteArray(bytes: ArrayBuffer): NativePointer
-	writeUtf8String(str: string): NativePointer
+	/**
+     *  Read `length` bytes → JS ArrayBuffer.
+     * @param length: number
+     * @returns ArrayBuffer
+     */
+    readByteArray(length: number): ArrayBuffer
+	/**
+     * 
+     * @param maxLength: number
+     * @returns string
+     */
+    readCString(maxLength: number): string
+	/**
+     * 
+     * @param maxLength: number
+     * @returns string
+     */
+    readUtf8String(maxLength: number): string
+	/**
+     *  ---- Memory Write ----
+     *  All return shared_ptr
+     * <this
+     * > for chaining.
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeU8(v: number): NativePointer
+	/**
+     * 
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeS8(v: number): NativePointer
+	/**
+     * 
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeU16(v: number): NativePointer
+	/**
+     * 
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeS16(v: number): NativePointer
+	/**
+     * 
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeU32(v: number): NativePointer
+	/**
+     * 
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeS32(v: number): NativePointer
+	/**
+     * 
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeU64(v: number): NativePointer
+	/**
+     * 
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeS64(v: number): NativePointer
+	/**
+     * 
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeFloat(v: number): NativePointer
+	/**
+     * 
+     * @param v: number
+     * @returns NativePointer
+     */
+    writeDouble(v: number): NativePointer
+	/**
+     * 
+     * @param v: NativePointer
+     * @returns NativePointer
+     */
+    writePointer(v: NativePointer): NativePointer
+	/**
+     *  Write from JS ArrayBuffer.
+     * @param bytes: ArrayBuffer
+     * @returns NativePointer
+     */
+    writeByteArray(bytes: ArrayBuffer): NativePointer
+	/**
+     * 
+     * @param str: string
+     * @returns NativePointer
+     */
+    writeUtf8String(str: string): NativePointer
 }
 export class console {
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static log(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static error(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static warn(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static info(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static debug(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static trace(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static group(message: string): void
 	static groupEnd(): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static table(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static time(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static timeEnd(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static count(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static countReset(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static dir(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static dirxml(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static profile(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static profileEnd(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static timeStamp(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static timeline(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static timelineEnd(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static timeLog(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
     static timeLine(message: string): void
 	/**
-     *
+     * 
      * @param message: string
      * @returns void
      */
@@ -213,6 +365,7 @@ export class NativeSoftwareBreakpoint {
     static removeAll(): void
 }
 export class InstructionInfo {
+	constructor(arg0: InstructionInfo);
 	mnemonic: string
 	opStr: string
 	size: number
@@ -226,6 +379,7 @@ export class InstructionInfo {
 	regsWrite: Array<number>
 }
 export class InstructionAnalysis {
+	constructor(arg0: InstructionAnalysis);
 	isBranch: boolean
 	isCall: boolean
 	isRelative: boolean
@@ -234,10 +388,8 @@ export class InstructionAnalysis {
 	size: number
 }
 export class XrefResult {
-	/**
-     *  the referring instruction's address
-     */
-    address: NativePointer
+	constructor(arg0: XrefResult);
+	address: NativePointer
 	/**
      *  "call" | "branch" | "data"
      */
@@ -499,19 +651,20 @@ export class NativeInterceptor {
     static revert(target: NativePointer): void
 }
 export class ScanMatch {
+	constructor(arg0: ScanMatch);
 	address: NativePointer
 	size: number
 }
 export class NativeMemory {
 	/**
-     *  Read `size` bytes from `address`, return as ArrayBuffer
+     *  Read `size` bytes from `address`, return as byte vector (→ JS ArrayBuffer)
      * @param address: NativePointer
      * @param size: number
      * @returns ArrayBuffer
      */
     static readMemory(address: NativePointer, size: number): ArrayBuffer
 	/**
-     *  Like readMemory but returns empty ArrayBuffer on access fault instead of
+     *  Like readMemory but returns empty vector on access fault instead of
      *  crashing
      * @param address: NativePointer
      * @param size: number
@@ -588,7 +741,9 @@ export class NativeMemory {
      */
     static scanModule(moduleName: string, pattern: string): Array<ScanMatch>
 	/**
-     *  Async variant of scanMemory — returns Lazy<T> (-> JS Promise).
+     *  Async variant of scanMemory — returns Lazy
+     * <T
+     * > (→ JS Promise).
      * @param address: NativePointer
      * @param size: number
      * @param pattern: string
@@ -596,7 +751,9 @@ export class NativeMemory {
      */
     static scanMemoryAsync(address: NativePointer, size: number, pattern: string): Promise<Array<ScanMatch>>
 	/**
-     *  Async variant of scanModule — returns Lazy<T> (-> JS Promise).
+     *  Async variant of scanModule — returns Lazy
+     * <T
+     * > (→ JS Promise).
      * @param moduleName: string
      * @param pattern: string
      * @returns Promise<Array<ScanMatch>>
@@ -604,6 +761,7 @@ export class NativeMemory {
     static scanModuleAsync(moduleName: string, pattern: string): Promise<Array<ScanMatch>>
 }
 export class MemoryAccessDetails {
+	constructor(arg0: MemoryAccessDetails);
 	/**
      *  exact access address
      */
@@ -659,6 +817,7 @@ export class SegmentInfo {
 	size: number
 }
 export class ModuleInfo {
+	constructor(arg0: ModuleInfo);
 	name: string
 	base: NativePointer
 	size: number
@@ -669,6 +828,7 @@ export class ModuleInfo {
     segments: Array<SegmentInfo>
 }
 export class RangeInfo {
+	constructor(arg0: RangeInfo);
 	base: NativePointer
 	size: number
 	protection: string
@@ -678,6 +838,7 @@ export class RangeInfo {
     filePath: string
 }
 export class ExportInfo {
+	constructor(arg0: ExportInfo);
 	type: string
 	name: string
 	address: NativePointer
