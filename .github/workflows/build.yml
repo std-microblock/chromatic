@@ -43,7 +43,7 @@ jobs:
       - name: Install xmake
         uses: xmake-io/github-action-setup-xmake@v1
         with:
-          xmake-version: 3.0.7
+          xmake-version: 3.0.8
 
       - name: Setup pnpm
         if: ${{ !matrix.android }}
