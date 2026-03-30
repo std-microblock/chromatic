@@ -20,10 +20,14 @@ TEST_F(ChromaticTest, ScriptLifecycle_OnDisposeFromJS) {
   // Register dispose callback from JS using Script.onDispose
   // Verify the registration itself works without crashing
   chromatic::script::runtime runtime;
+  int* ptr = new int(42);
   std::string code = R"(
     (() => {
       const handle = Script.onDispose(() => {
         console.log('dispose called');
+        const target = ptr(')" +
+                     ptrHex((void *)ptr) + R"(');
+        target.writeU32(0);
       });
       if (typeof handle.remove !== 'function')
         throw new Error('onDispose should return a handle with remove()');
@@ -35,6 +39,9 @@ TEST_F(ChromaticTest, ScriptLifecycle_OnDisposeFromJS) {
 
   runtime.cleanup();
   runtime.reset();
+
+  EXPECT_EQ(*ptr, 0);
+  delete ptr;
 }
 
 TEST_F(ChromaticTest, ScriptLifecycle_MultipleCallbacks) {
