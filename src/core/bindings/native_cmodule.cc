@@ -81,9 +81,9 @@ static void injectRuntimeSymbols(TCCState *s,
   injected.insert("____stdoutp");
   injected.insert("___stderrp");
   injected.insert("____stderrp");
-#elif defined(__ANDROID__)
-  // Android Bionic: stdin/stdout/stderr are macros expanding to rvalues.
-  // Use stable pointers from the C runtime instead.
+#elif defined(__ANDROID__) || defined(_WIN32)
+  // Android Bionic and Windows UCRT: stdin/stdout/stderr expand to rvalues.
+  // Capture them into static lvalues so we can take their address.
   {
     static FILE *s_stdin  = stdin;
     static FILE *s_stdout = stdout;
