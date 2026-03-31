@@ -182,12 +182,6 @@ static LONG CALLBACK vehHandler(PEXCEPTION_POINTERS ep) {
     return EXCEPTION_CONTINUE_SEARCH;
   }
 
-#ifdef CHROMATIC_X64
-  ctx.pc = ep->ContextRecord->Rip;
-#else
-  ctx.pc = ep->ContextRecord->Pc;
-#endif
-
   // Dispatch through handler chain
   g_lock.lock();
   auto handlers = g_handlers;
