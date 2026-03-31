@@ -930,5 +930,26 @@ export class ScriptLifecycle {
      */
     static _callDisposeCallbacks(): void
 }
+export class NativeCModule {
+	constructor(code: string, symbolNames: Array<string>, symbolAddresses: Array<number>);
+	/**
+     *  Get the address of a named exported symbol. Returns null pointer if not
+     *  found.
+     * @param name: string
+     * @returns NativePointer
+     */
+    getSymbol(name: string): NativePointer
+	/**
+     *  Get all exported global symbol names.
+      @returns Array<string>
+     */
+    listSymbols(): Array<string>
+	/**
+     *  Eagerly unmap the module from memory.
+     *  Calls void finalize(void) if defined, then frees the TCC state.
+      @returns void
+     */
+    dispose(): void
+}
 }
 

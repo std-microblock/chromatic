@@ -16,6 +16,7 @@ import { ExceptionHandler } from './exception-handler';
 import { SoftwareBreakpoint, HardwareBreakpoint } from './breakpoint';
 import { MemoryAccessMonitor } from './memory-access-monitor';
 import { Script } from './script-lifecycle';
+import { CModule } from './cmodule';
 
 // Register globals (Frida-compatible)
 const g = globalThis as any;
@@ -26,6 +27,7 @@ g.Int64 = Int64;
 g.UInt64 = UInt64;
 g.NativeFunction = NativeFunction;
 g.NativeCallback = NativeCallback;
+g.CModule = CModule;
 
 // Singletons / namespaces
 g.Memory = Memory;

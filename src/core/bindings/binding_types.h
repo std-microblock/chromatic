@@ -15,3 +15,4 @@
 #include "native_memory_access_monitor.h"
 #include "native_process.h"
 #include "script_lifecycle.h"
+#include "native_cmodule.h"

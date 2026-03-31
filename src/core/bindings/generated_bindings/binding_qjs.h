@@ -836,6 +836,30 @@ template<> struct js_bind<chromatic::js::ScriptLifecycle> {
     }
 };
 
+template <> struct qjs::js_traits<chromatic::js::NativeCModule> {
+    static chromatic::js::NativeCModule unwrap(JSContext *ctx, JSValueConst v) {
+        chromatic::js::NativeCModule obj;
+
+        return obj;
+    }
+
+    static JSValue wrap(JSContext *ctx, const chromatic::js::NativeCModule &val) noexcept {
+        JSValue obj = JS_NewObject(ctx);
+
+        return obj;
+    }
+};
+template<> struct js_bind<chromatic::js::NativeCModule> {
+    static void bind(qjs::Context::Module &mod) {
+        mod.class_<chromatic::js::NativeCModule>("NativeCModule")
+            .constructor<std::string, std::vector<std::string>, std::vector<uint64_t>>()
+                .fun<&chromatic::js::NativeCModule::getSymbol>("getSymbol")
+                .fun<&chromatic::js::NativeCModule::listSymbols>("listSymbols")
+                .fun<&chromatic::js::NativeCModule::dispose>("dispose")
+            ;
+    }
+};
+
 inline void chromatic_bindAll(qjs::Context::Module &mod) {
 
     js_bind<chromatic::js::NativePointer>::bind(mod);
@@ -881,5 +905,7 @@ inline void chromatic_bindAll(qjs::Context::Module &mod) {
     js_bind<chromatic::js::NativeProcess>::bind(mod);
 
     js_bind<chromatic::js::ScriptLifecycle>::bind(mod);
+
+    js_bind<chromatic::js::NativeCModule>::bind(mod);
 
 }

@@ -5,10 +5,12 @@ set_languages("c++23")
 
 includes("deps/yalantinglibs.lua")
 includes("deps/breeze-js.lua")
+includes("deps/libtcc.lua")
 
 add_requires("breeze-js-runtime")
 add_requires("capstone", "fmt", "libffi", "asmjit", "gtest")
 add_requires("xz", "reflect-cpp")
+add_requires("libtcc")
 
 -- Platform defines
 if is_os("windows") then
@@ -38,7 +40,7 @@ target("chromatic-core")
     add_files("src/core/**.cc")
     add_rules("utils.bin2obj", {extensions = ".js"})
     add_files("src/core/typescript/dist/index.js")
-    add_packages("breeze-js-runtime", "fmt", "capstone", "libffi", "asmjit", {
+    add_packages("breeze-js-runtime", "fmt", "capstone", "libffi", "asmjit", "libtcc", {
         public = true
     })
     add_headerfiles("src/core/**.h", "src/core/**.hpp")
