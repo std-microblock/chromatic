@@ -63,9 +63,17 @@ target("chromatic-test")
     add_files("src/test/**.cc")
     add_deps("chromatic-core")
     add_packages("gtest")
+    -- On Linux, breeze-quickjs-ng.a references JS_EnqueueJob defined in
+    -- breeze-js-runtime.a; wrap in --start-group/--end-group to resolve.
+    if is_os("linux") then
+        add_linkgroups("breeze-js-runtime", "breeze-quickjs-ng", {group = true})
+    end
 
 target("chromatic-injectee")
     set_kind("shared")
     add_files("src/injectee/**.cc")
     add_deps("chromatic-core")
     add_packages("xz", "reflect-cpp", "fmt")
+    if is_os("linux") then
+        add_linkgroups("breeze-js-runtime", "breeze-quickjs-ng", {group = true})
+    end

@@ -3,7 +3,7 @@ package("libtcc")
     set_description("Tiny C Compiler")
 
     set_urls("https://github.com/std-microblock/tinycc.git")
-    add_versions("2026.03.30+2", "4aa71afa8e59194d7b05f5ea49ff9476401b7d20")
+    add_versions("2026.03.30+3", "8b83545011b3790f216189a6916a4cbf9b0212ed")
 
     add_configs("shared", {description = "Build shared library.", default = false, type = "boolean", readonly = true})
 

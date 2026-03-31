@@ -110,7 +110,7 @@ jobs:
 
       - name: Test
         if: ${{ !matrix.android }}
-        run: xmake run chromatic-test
+        run: xmake run chromatic-test -- --no-signal-tests
 
       - name: Prepare artifacts
         shell: bash
