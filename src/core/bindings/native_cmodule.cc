@@ -212,26 +212,8 @@ NativeCModule::NativeCModule(const std::string &code,
     tcc_add_symbol($impl->tcc, symbolNames[i].c_str(), addr);
   }
 
-#ifdef _WIN32
-  // On Windows/TCC-PE, tcc_add_symbol registers symbols as DLL imports
-  // (via pe_putimport). Any extern variable reference in user C code therefore
-  // must be declared with __declspec(dllimport) so TCC sets the ST_PE_IMPORT
-  // flag and doesn't error during relocation.  Prepend a preamble that forward-
-  // declares each user symbol as dllimport so the user code doesn't have to.
-  std::string preamble;
-  for (size_t i = 0; i < symbolNames.size(); i++) {
-    preamble += "__declspec(dllimport) extern char ";
-    preamble += symbolNames[i];
-    preamble += "[];\n";
-  }
-  std::string fullCode = preamble + code;
-  const std::string &codeToCompile = fullCode;
-#else
-  const std::string &codeToCompile = code;
-#endif
-
   // Compile
-  if (tcc_compile_string($impl->tcc, codeToCompile.c_str()) < 0) {
+  if (tcc_compile_string($impl->tcc, code.c_str()) < 0) {
     std::string msg = "CModule: compilation failed";
     if (!errors.empty())
       msg += ":\n" + errors;
