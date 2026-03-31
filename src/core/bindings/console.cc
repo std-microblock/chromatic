@@ -10,6 +10,11 @@
 #include <android/log.h>
 #endif
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 namespace {
 thread_local int current_group_depth = 0;
 thread_local std::unordered_map<
