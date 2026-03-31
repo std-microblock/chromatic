@@ -631,10 +631,12 @@ NativeProcess::enumerateExports(const std::string &moduleName) {
             auto gh = reinterpret_cast<const uint32_t *>(d->d_un.d_ptr);
             gnuNbuckets = gh[0];
             gnuSymndx = gh[1];
-            // bloom filter: gh[2] words starting at gh[4]
-            // buckets follow bloom
+            // bloom filter: gh[2] bloom-word count; each bloom word is
+            // ElfW(Addr)-sized (8 bytes on 64-bit = 2 × uint32_t).
+            // Buckets immediately follow the bloom filter.
             uint32_t bloomWords = gh[2];
-            gnuBuckets = gh + 4 + bloomWords;
+            uint32_t bloomU32s = bloomWords * (sizeof(ElfW(Addr)) / sizeof(uint32_t));
+            gnuBuckets = gh + 4 + bloomU32s;
             break;
           }
           }
