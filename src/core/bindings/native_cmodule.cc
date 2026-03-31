@@ -151,10 +151,6 @@ struct NativeCModule::Impl {
   // Track injected runtime symbol names (with platform prefix) to filter them
   // out from listSymbols.
   std::unordered_set<std::string> injectedSymbols;
-#ifdef _WIN32
-  // On Windows, __imp_<name> cells must outlive the TCCState.
-  std::vector<const void **> impPointers;
-#endif
 
   ~Impl() {
     if (tcc && !disposed) {
@@ -162,11 +158,6 @@ struct NativeCModule::Impl {
       tcc_delete(tcc);
       tcc = nullptr;
     }
-#ifdef _WIN32
-    for (auto *p : impPointers)
-      delete p;
-    impPointers.clear();
-#endif
   }
 
   void callFinalize() {
@@ -219,19 +210,28 @@ NativeCModule::NativeCModule(const std::string &code,
   for (size_t i = 0; i < symbolNames.size(); i++) {
     const void *addr = reinterpret_cast<const void *>(symbolAddresses[i]);
     tcc_add_symbol($impl->tcc, symbolNames[i].c_str(), addr);
-#ifdef _WIN32
-    // On Windows, TCC's PE linker requires object symbols to have a
-    // corresponding __imp_<name> IAT entry (a pointer-to-pointer).
-    // We store the pointer in a heap-allocated cell and register it.
-    auto *cell = new const void *(addr);
-    $impl->impPointers.push_back(cell);
-    std::string impName = "__imp_" + symbolNames[i];
-    tcc_add_symbol($impl->tcc, impName.c_str(), cell);
-#endif
   }
 
+#ifdef _WIN32
+  // On Windows/TCC-PE, tcc_add_symbol registers symbols as DLL imports
+  // (via pe_putimport). Any extern variable reference in user C code therefore
+  // must be declared with __declspec(dllimport) so TCC sets the ST_PE_IMPORT
+  // flag and doesn't error during relocation.  Prepend a preamble that forward-
+  // declares each user symbol as dllimport so the user code doesn't have to.
+  std::string preamble;
+  for (size_t i = 0; i < symbolNames.size(); i++) {
+    preamble += "__declspec(dllimport) extern char ";
+    preamble += symbolNames[i];
+    preamble += "[];\n";
+  }
+  std::string fullCode = preamble + code;
+  const std::string &codeToCompile = fullCode;
+#else
+  const std::string &codeToCompile = code;
+#endif
+
   // Compile
-  if (tcc_compile_string($impl->tcc, code.c_str()) < 0) {
+  if (tcc_compile_string($impl->tcc, codeToCompile.c_str()) < 0) {
     std::string msg = "CModule: compilation failed";
     if (!errors.empty())
       msg += ":\n" + errors;
