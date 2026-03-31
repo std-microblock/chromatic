@@ -151,6 +151,10 @@ struct NativeCModule::Impl {
   // Track injected runtime symbol names (with platform prefix) to filter them
   // out from listSymbols.
   std::unordered_set<std::string> injectedSymbols;
+#ifdef _WIN32
+  // On Windows, __imp_<name> cells must outlive the TCCState.
+  std::vector<const void **> impPointers;
+#endif
 
   ~Impl() {
     if (tcc && !disposed) {
@@ -158,6 +162,11 @@ struct NativeCModule::Impl {
       tcc_delete(tcc);
       tcc = nullptr;
     }
+#ifdef _WIN32
+    for (auto *p : impPointers)
+      delete p;
+    impPointers.clear();
+#endif
   }
 
   void callFinalize() {
@@ -208,8 +217,17 @@ NativeCModule::NativeCModule(const std::string &code,
 
   // Inject user-provided external symbols
   for (size_t i = 0; i < symbolNames.size(); i++) {
-    tcc_add_symbol($impl->tcc, symbolNames[i].c_str(),
-                   reinterpret_cast<const void *>(symbolAddresses[i]));
+    const void *addr = reinterpret_cast<const void *>(symbolAddresses[i]);
+    tcc_add_symbol($impl->tcc, symbolNames[i].c_str(), addr);
+#ifdef _WIN32
+    // On Windows, TCC's PE linker requires object symbols to have a
+    // corresponding __imp_<name> IAT entry (a pointer-to-pointer).
+    // We store the pointer in a heap-allocated cell and register it.
+    auto *cell = new const void *(addr);
+    $impl->impPointers.push_back(cell);
+    std::string impName = "__imp_" + symbolNames[i];
+    tcc_add_symbol($impl->tcc, impName.c_str(), cell);
+#endif
   }
 
   // Compile
