@@ -420,7 +420,7 @@ hwBpSigtrapHandler(std::shared_ptr<chromatic::js::ExceptionContext> ctx) {
           for (auto &[addr, entry] : g_hwByAddress) {
             if (entry->slot == slot) {
               if (entry->onHit) {
-                std::string ctxHex = toHexAddr(ctx->pc);
+                std::string ctxHex = toHexAddr(ctx->getPc());
                 try {
                   entry->onHit(ctxHex);
                 } catch (...) {
@@ -445,7 +445,7 @@ hwBpSigtrapHandler(std::shared_ptr<chromatic::js::ExceptionContext> ctx) {
         for (auto &[addr, entry] : g_hwByAddress) {
           if (entry->slot == slot) {
             if (entry->onHit) {
-              std::string ctxHex = toHexAddr(ctx->pc);
+              std::string ctxHex = toHexAddr(ctx->getPc());
               try {
                 entry->onHit(ctxHex);
               } catch (...) {
