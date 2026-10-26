@@ -199,7 +199,17 @@ std::optional<std::string> Plugin::getStartupScript()
 void PluginManager::performForceInstallAndUpdateAsync(const std::string& source)
 {
 	std::thread([source]() {
-		performForceInstallAndUpdateSync(source);
+		try {
+			performForceInstallAndUpdateSync(source);
+		}
+		catch (const std::exception& e) {
+			std::cerr << "[ BetterNCM ] [Plugin Remote Tasks] Update failed on "
+				<< source << ": " << e.what() << std::endl;
+		}
+		catch (...) {
+			std::cerr << "[ BetterNCM ] [Plugin Remote Tasks] Unknown update error on "
+				<< source << std::endl;
+		}
 	}).detach();
 }
 

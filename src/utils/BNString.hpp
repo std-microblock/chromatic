@@ -201,12 +201,16 @@ public:
 		return static_cast<int>(index);
 	}
 
-	[[nodiscard]] std::vector<std::wstring_view> split(const std::wstring& delimiter) const {
-				std::vector<std::wstring_view> result;
+	[[nodiscard]] std::vector<std::wstring> split(const std::wstring& delimiter) const {
+		if (delimiter.empty()) {
+			throw std::invalid_argument("split delimiter must not be empty");
+		}
+
+		std::vector<std::wstring> result;
 		size_t start = 0;
 		size_t end = 0;
 		while ((end = this->find(delimiter, start)) != std::wstring::npos) {
-						result.push_back(this->substr(start, end - start));
+			result.push_back(this->substr(start, end - start));
 			start = end + delimiter.length();
 		}
 		result.push_back(this->substr(start));
